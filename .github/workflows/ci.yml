@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ts: ${{ steps.filter.outputs.ts }}
+      src: ${{ steps.filter.outputs.src }}
+      readme: ${{ steps.filter.outputs.readme }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ts:
+              - "web/console/**"
+            src:
+              - "src/**"
+            readme:
+              - "README.md"
+
+  python:
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          fi
+      - name: Black (check)
+        run: black --check .
+      - name: Ruff
+        run: ruff check .
+      - name: Pytest with coverage
+        run: |
+          mkdir -p reports
+          pytest -q --cov=src --cov-report=xml:reports/coverage.xml --junitxml=reports/junit.xml
+      - name: Enforce coverage threshold
+        run: |
+          python - <<"PYCHECK"
+          import sys
+          import xml.etree.ElementTree as ET
+
+          threshold = 0.80
+          report_path = "reports/coverage.xml"
+          try:
+            tree = ET.parse(report_path)
+          except FileNotFoundError:
+            print(f"Coverage report not found at {report_path}")
+            sys.exit(1)
+
+          root = tree.getroot()
+          rate = float(root.get("line-rate", "0"))
+          if rate < threshold:
+            print(f"Coverage {rate:.4f} is below threshold {threshold:.2f}")
+            sys.exit(1)
+          print(f"Coverage {rate:.4f} meets threshold {threshold:.2f}")
+          PYCHECK
+
+  typescript:
+    needs: changes
+    if: ${{ needs.changes.outputs.ts == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate workspace
+        run: |
+          if [ ! -d web/console ]; then
+            echo "web/console directory is required for TypeScript checks" >&2
+            exit 1
+          fi
+          if [ ! -f package.json ]; then
+            echo "package.json is required for TypeScript checks" >&2
+            exit 1
+          fi
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint (console)
+        run: npm run lint:console
+      - name: Test (console)
+        run: npm test -- --ci
+      - name: Enforce TS coverage threshold
+        run: |
+          node - <<"NODECHECK"
+          import { readFileSync } from 'node:fs';
+          const threshold = 0.85;
+          const reportPath = 'coverage/coverage-summary.json';
+          let summary;
+          try {
+            summary = JSON.parse(readFileSync(reportPath, 'utf8'));
+          } catch (error) {
+            console.error('Unable to read coverage summary at ' + reportPath);
+            console.error(error.message);
+            process.exit(1);
+          }
+          const total = summary && summary.total && summary.total.lines;
+          const linePct = total && typeof total.pct === 'number' ? total.pct : 0;
+          const thresholdPct = (threshold * 100).toFixed(2);
+          if (linePct < threshold * 100) {
+            console.error('Coverage ' + linePct + '% is below threshold ' + thresholdPct + '%');
+            process.exit(1);
+          }
+          console.log('Coverage ' + linePct + '% meets threshold ' + thresholdPct + '%');
+          NODECHECK
+
+  docs-updated:
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure README updated for src changes
+        env:
+          README_CHANGED: ${{ needs.changes.outputs.readme }}
+        run: |
+          if [ "$README_CHANGED" != "true" ]; then
+            echo "src/** changes require README.md to be updated." >&2
+            exit 1
+          fi
+          echo "README.md updated alongside src changes."

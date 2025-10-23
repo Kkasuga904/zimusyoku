@@ -1,5 +1,6 @@
 # Console Agent Overrides
 
+# agent:declare
 version: 1
 style:
   typescript:

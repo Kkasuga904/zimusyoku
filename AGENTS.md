@@ -1,3 +1,99 @@
+# agent:declare
+version: 1
+merge_strategy:
+  precedence:
+    - "root"
+    - "home"
+    - "subdir"
+  arrays: "append"
+  maps: "deep-merge"
+project:
+  name: "zimusyoku"
+style:
+  python:
+    formatter:
+      tool: "black"
+      cmd: "black ."
+      version: "24.8"
+    lint:
+      tool: "ruff"
+      cmd: "ruff check ."
+      fail_on:
+        - "E"
+        - "F"
+qa:
+  python:
+    test_cmd: "pytest -q"
+    coverage_cmd: "pytest --cov=src --cov-report=xml:reports/coverage.xml --junitxml=reports/junit.xml"
+    coverage_threshold: 0.80
+    artifacts:
+      junit_xml: "reports/junit.xml"
+      coverage_file: "reports/coverage.xml"
+docs:
+  must_update_when:
+    - code_paths:
+        - "src/**"
+      docs_paths:
+        - "README.md"
+generated:
+  python: null
+  ts: null
+  regenerate_cmds: []
+adr:
+  required_when: []
+  path: "docs/adr"
+  template: "docs/adr/TEMPLATE.md"
+vcs:
+  commits:
+    convention: "conventional-commits"
+  pr:
+    template_required: true
+    template:
+      title: "[{type}] {scope}: {summary}"
+      body_sections:
+        - "変更概要"
+        - "テスト結果（コマンド・スクリーンショット）"
+        - "影響範囲（互換性・移行手順）"
+        - "関連Issue/ADR"
+    auto_assign:
+      reviewers:
+        rules: []
+    checks_required:
+      - "lint"
+      - "unit"
+      - "coverage>=0.80"
+      - "docs-updated"
+secrets:
+  policy:
+    prefer: "env"
+    env_file: ".env"
+    required: []
+  redaction:
+    patterns:
+      - "apikey"
+      - "token"
+      - "password"
+      - "secret"
+      - "Bearer\\s+[A-Za-z0-9._-]+"
+agent:
+  bootstrap:
+    read_files:
+      - "AGENTS.md"
+      - "README.md"
+    merge_rules: "respect merge_strategy"
+  must_run:
+    - "style.python.formatter"
+    - "style.python.lint"
+    - "qa.python.test_cmd"
+  must_block_on_failure:
+    - "lint"
+    - "coverage"
+    - "checks_required"
+  outputs:
+    pr_format: "vcs.pr.template"
+    junit_path: "qa.artifacts.junit_xml"
+    coverage_path: "qa.artifacts.coverage_file"
+
 # Repository Guidelines
 
 ## Project Structure & Module Organization

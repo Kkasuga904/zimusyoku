@@ -20,3 +20,14 @@ make docs           # generate Sphinx HTML docs
 ```
 
 See `AGENTS.md` for the authoritative contributor workflow, including style, QA, build, and PR policies.
+
+## Verification
+
+Run the required checks locally before opening a PR:
+
+```bash
+pip install -r requirements.txt
+black --check . && ruff check .
+pytest -q --cov=src
+# npm ci && npm run lint:console && npm test -- --ci  # when web/console changes
+```
