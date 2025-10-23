@@ -102,15 +102,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Lint (console)
-        run: npm run lint:console
+        run: npm --prefix web/console run lint:console
       - name: Test (console)
-        run: npm test -- --ci
+        run: npm --prefix web/console run test -- --ci
       - name: Enforce TS coverage threshold
         run: |
           node - <<"NODECHECK"
           import { readFileSync } from 'node:fs';
           const threshold = 0.85;
-          const reportPath = 'coverage/coverage-summary.json';
+          const reportPath = 'web/console/coverage/coverage-summary.json';
           let summary;
           try {
             summary = JSON.parse(readFileSync(reportPath, 'utf8'));
