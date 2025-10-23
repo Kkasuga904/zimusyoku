@@ -1,48 +1,30 @@
-import js from "@eslint/js";
-import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
-import reactPlugin from "eslint-plugin-react";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
 import prettier from "eslint-config-prettier";
-import globals from "globals";
-
-const vitestGlobals = {
-  describe: "readonly",
-  it: "readonly",
-  expect: "readonly",
-  beforeEach: "readonly",
-  afterEach: "readonly",
-  vi: "readonly"
-};
+import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
-  js.configs.recommended,
   {
     files: ["src/**/*.{ts,tsx}"],
+    ignores: ["dist", "coverage"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        ecmaFeatures: { jsx: true },
         ecmaVersion: "latest",
-        sourceType: "module"
-      },
-      globals: {
-        ...globals.browser,
-        ...vitestGlobals
+        sourceType: "module",
+        ecmaFeatures: {
+          jsx: true
+        }
       }
     },
     plugins: {
-      "@typescript-eslint": tseslint,
-      react: reactPlugin
+      "@typescript-eslint": tsPlugin,
+      "react-hooks": reactHooks
     },
     rules: {
-      ...tseslint.configs.recommended.rules,
-      ...reactPlugin.configs.recommended.rules,
-      "react/prop-types": "off"
-    },
-    settings: {
-      react: {
-        version: "detect"
-      }
+      ...tsPlugin.configs.recommended.rules,
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn"
     }
   },
   prettier
