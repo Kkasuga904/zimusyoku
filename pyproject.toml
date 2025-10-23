@@ -1,0 +1,36 @@
+[project]
+name = "universal-paste-engine"
+version = "0.1.0"
+description = "Reference implementation for extractor and console agents"
+requires-python = ">=3.13"
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+include = "^src/.+\\.py$|^services/.+\\.py$"
+exclude = "(node_modules|web/console|docs/_build|logs|reports|\\.git|__pycache__)"
+
+[tool.ruff]
+line-length = 88
+src = ["src"]
+exclude = ["node_modules", "web/console/node_modules", "web/console/dist", "docs/_build", "logs", "reports"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["services/extractor/tests"]
+addopts = "--junitxml=reports/junit.xml --cov-report=xml:reports/coverage.xml"
+markers = [
+    "flaky: mark a test as flaky and eligible for retry",
+    "network: marks tests requiring external network access",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+fail_under = 80.0
+show_missing = true
