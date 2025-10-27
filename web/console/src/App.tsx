@@ -1,11 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
-<<<<<<< HEAD
-import Home from "./pages/Home";
-import JobDetail from "./pages/JobDetail";
-import Jobs from "./pages/Jobs";
-import Upload from "./pages/Upload";
-=======
 import HelpModal from "./components/HelpModal";
 import LoginForm from "./components/LoginForm";
 import { useStrings } from "./i18n/strings";
@@ -15,7 +9,7 @@ import Summary from "./pages/Summary";
 import Upload from "./pages/Upload";
 import { initializeToken, login as performLogin, logout as performLogout } from "./modules/authClient";
 import { ApiError, UnauthorizedError } from "./modules/apiClient";
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
+import { subscribeToUnauthorized } from "./modules/authEvents";
 
 const App = () => {
   const strings = useStrings();
@@ -30,6 +24,15 @@ const App = () => {
     setIsHelpOpen(false);
     helpButtonRef.current?.focus();
   };
+
+  useEffect(() => {
+    const unsubscribe = subscribeToUnauthorized(() => {
+      performLogout();
+      setToken(null);
+      setAuthError(strings.auth.sessionExpired);
+    });
+    return unsubscribe;
+  }, [strings.auth.sessionExpired]);
 
   const handleLogin = async (email: string, password: string) => {
     setIsAuthLoading(true);
@@ -57,6 +60,7 @@ const App = () => {
   const handleLogout = () => {
     performLogout();
     setToken(null);
+    setAuthError(null);
   };
 
   if (!token) {
@@ -89,9 +93,6 @@ const App = () => {
             <li>
               <NavLink to="/jobs">{strings.nav.jobs}</NavLink>
             </li>
-            <li>
-              <NavLink to="/upload">Upload</NavLink>
-            </li>
           </ul>
         </nav>
         <div className="header-actions">
@@ -116,10 +117,6 @@ const App = () => {
           <Route path="/upload" element={<Upload />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/jobs/:id" element={<JobDetail />} />
-<<<<<<< HEAD
-          <Route path="/upload" element={<Upload />} />
-=======
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
         </Routes>
       </main>
       <HelpModal isOpen={isHelpOpen} onClose={closeHelp} strings={strings.help} />

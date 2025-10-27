@@ -10,11 +10,12 @@ import {
 } from "chart.js";
 import { Bar, Doughnut } from "react-chartjs-2";
 import { fetchSummary, type SummaryResponse } from "../modules/summaryApi";
+import { NetworkError } from "../modules/apiClient";
 import { useStrings } from "../i18n/strings";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
-type LoadState = "loading" | "error" | "success";
+type LoadState = "loading" | "error" | "offline" | "success";
 
 const Summary = () => {
   const strings = useStrings();
@@ -27,8 +28,12 @@ const Summary = () => {
         const data = await fetchSummary();
         setSummary(data);
         setState("success");
-      } catch (_error) {
-        setState("error");
+      } catch (error) {
+        if (error instanceof NetworkError) {
+          setState("offline");
+        } else {
+          setState("error");
+        }
       }
     };
 
@@ -84,6 +89,11 @@ const Summary = () => {
       {state === "error" && (
         <div className="error-banner" role="alert">
           <p>{strings.summary.error}</p>
+        </div>
+      )}
+      {state === "offline" && (
+        <div className="error-banner" role="alert">
+          <p>{strings.summary.offline}</p>
         </div>
       )}
       {state === "success" && summary && (

@@ -130,6 +130,7 @@ export type Strings = {
     title: string;
     loading: string;
     error: string;
+    offline: string;
     totalSpend: string;
     journalCount: string;
     month: string;
@@ -145,6 +146,7 @@ export type Strings = {
     submit: string;
     signingIn: string;
     invalid: string;
+    sessionExpired: string;
     logout: string;
   };
 };
@@ -325,6 +327,7 @@ export const ja: Strings = {
     submit: "サインイン",
     signingIn: "サインイン中…",
     invalid: "認証に失敗しました。メールアドレスとパスワードをご確認ください。",
+    sessionExpired: "セッションの有効期限が切れました。再度サインインしてください。",
     logout: "ログアウト",
   },
 };
@@ -493,6 +496,7 @@ export const en: Strings = {
     title: "Dashboard",
     loading: "Loading summary…",
     error: "Failed to load summary data.",
+    offline: "Cannot reach the API. Please make sure the backend is running.",
     totalSpend: "Monthly total spend",
     journalCount: "Journal entries",
     month: "Period",
@@ -508,6 +512,7 @@ export const en: Strings = {
     submit: "Sign in",
     signingIn: "Signing in…",
     invalid: "Sign-in failed. Check your email and password.",
+    sessionExpired: "Session expired. Please sign in again.",
     logout: "Sign out",
   },
 };

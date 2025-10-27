@@ -1,17 +1,4 @@
-services:
-<<<<<<< HEAD
-  api:
-    build:
-      context: ./services/api
-    command: uvicorn main:app --host 0.0.0.0 --port 9000
-    environment:
-      - API_DATA_DIR=/app/data
-    volumes:
-      - ./data:/app/data
-    ports:
-      - "9000:9000"
-    restart: unless-stopped
-=======
+﻿services:
   redis:
     image: redis:7-alpine
     ports:
@@ -48,19 +35,13 @@ services:
       - ./data:/app/data
     depends_on:
       - redis
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
 
   console:
     build:
       context: .
       dockerfile: web/console/Dockerfile
-<<<<<<< HEAD
-    depends_on:
-      - api
-=======
     environment:
       VITE_API_URL: http://localhost:8000
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
     ports:
       - "8080:80"
     depends_on:

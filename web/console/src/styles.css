@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
   color: #0f172a;
   background: #eef2f9;
@@ -313,7 +313,7 @@ button {
 }
 
 .pipeline-step::before {
-  content: "•";
+  content: "窶｢";
   font-size: 1.2rem;
   color: inherit;
 }
@@ -380,34 +380,6 @@ button {
   overflow-x: auto;
 }
 
-.panel-subtitle {
-  margin: 0.25rem 0 0;
-  color: #475569;
-  font-size: 1rem;
-}
-
-.panel-header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.meta {
-  margin: 0;
-  font-size: 0.95rem;
-  color: #64748b;
-}
-
-.table-wrapper {
-  margin-top: 1.5rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  overflow-x: auto;
-  background: #fff;
-}
-
 .job-table {
   width: 100%;
   border-collapse: collapse;
@@ -424,10 +396,7 @@ button {
 
 .job-table th {
   background: #f8fafc;
-<<<<<<< HEAD
-=======
   color: #0f172a;
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
 }
 
 .status-pill {
@@ -435,55 +404,11 @@ button {
   align-items: center;
   justify-content: center;
   padding: 0.25rem 0.75rem;
-<<<<<<< HEAD
   border-radius: 999px;
   font-weight: 600;
   font-size: 0.9rem;
 }
 
-.status-queued {
-  background: #e0e8ff;
-  color: #1e3a8a;
-}
-
-.status-running {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-ok {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-failed {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-=======
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-<<<<<<< HEAD
-.badge-queued {
-  background: #e0e8ff;
-  color: #1e3a8a;
-}
-
-.badge-running {
-  background: #fef08a;
-  color: #854d0e;
-}
-
-.badge-ok {
-=======
 .status-queued {
   background: #e0f2fe;
   color: #1e3a8a;
@@ -495,163 +420,15 @@ button {
 }
 
 .status-ok {
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
   background: #dcfce7;
   color: #166534;
 }
 
-<<<<<<< HEAD
-.badge-failed {
-=======
 .status-failed {
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
   background: #fee2e2;
   color: #991b1b;
 }
 
-<<<<<<< HEAD
-.clickable-row {
-  cursor: pointer;
-}
-
-.clickable-row:focus-visible {
-  outline: 2px solid #1d4ed8;
-  outline-offset: 2px;
-}
-
-.primary-button,
-.secondary-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  border: none;
-}
-
-.primary-button {
-  background: #2563eb;
-  color: #fff;
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
-}
-
-.primary-button:hover,
-.primary-button:focus-visible {
-  background: #1d4ed8;
-}
-
-.secondary-button {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.secondary-button:hover,
-.secondary-button:focus-visible {
-  background: #cbd5f5;
-}
-
-.primary-button:disabled,
-.secondary-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.button-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.link-button {
-  background: none;
-  border: none;
-  padding: 0;
-  color: #2563eb;
-  cursor: pointer;
-  font: inherit;
-}
-
-.link-button:hover,
-.link-button:focus-visible {
-  text-decoration: underline;
-}
-
-.info-banner,
-.error-banner {
-  margin-top: 1.5rem;
-  padding: 1rem 1.25rem;
-  border-radius: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.info-banner {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fcd34d;
-}
-
-.error-banner {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
-}
-
-.empty-state {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
-  border-radius: 12px;
-  background: #f1f5f9;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: flex-start;
-}
-
-.upload-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.drop-zone {
-  border: 2px dashed #cbd5f5;
-  padding: 2rem;
-  border-radius: 12px;
-  text-align: center;
-  background: #f1f5f9;
-}
-
-.drop-zone:hover,
-.drop-zone:focus-visible {
-  background: #e0e7ff;
-}
-
-.drop-zone .hint {
-  color: #64748b;
-  margin-top: 0.5rem;
-}
-
-.logs {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.logs li {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-=======
 .status-callout {
   display: flex;
   gap: 0.75rem;
@@ -778,7 +555,6 @@ button {
   justify-content: center;
 }
 
->>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
 .sr-only {
   position: absolute;
   width: 1px;

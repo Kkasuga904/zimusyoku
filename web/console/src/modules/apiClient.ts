@@ -1,3 +1,5 @@
+import { notifyUnauthorized } from "./authEvents";
+
 const rawEnvUrl = (import.meta.env.VITE_API_URL ?? "").trim();
 
 const resolveBaseUrl = (): string => {
@@ -28,6 +30,18 @@ export class UnauthorizedError extends Error {
   constructor(message = "Unauthorized") {
     super(message);
     this.name = "UnauthorizedError";
+  }
+}
+
+export class NetworkError extends Error {
+  public readonly url: string;
+  public readonly originalError: unknown;
+
+  constructor(url: string, originalError: unknown) {
+    super(`Network request failed: ${url}`);
+    this.name = "NetworkError";
+    this.url = url;
+    this.originalError = originalError;
   }
 }
 
@@ -104,10 +118,13 @@ export const apiRequest = async <T>(
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error("[apiClient] network failure", url, error);
-    throw error;
+    throw new NetworkError(url, error);
   }
 
   if (response.status === 401) {
+    if (!skipAuth) {
+      notifyUnauthorized();
+    }
     throw new UnauthorizedError();
   }
 
@@ -128,15 +145,16 @@ export const downloadFile = async (path: string): Promise<Blob> => {
   let response: Response;
   try {
     response = await fetch(url, {
-    headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
-  });
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+    });
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error("[apiClient] download failed", url, error);
-    throw error;
+    throw new NetworkError(url, error);
   }
 
   if (response.status === 401) {
+    notifyUnauthorized();
     throw new UnauthorizedError();
   }
 
