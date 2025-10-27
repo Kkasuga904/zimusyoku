@@ -1,0 +1,5 @@
+﻿{
+  "new_services": ["ocr","accounting"],
+  "ui_updates": ["Upload","Jobs","Dashboard"],
+  "automated_process": ["OCR→AI分類→仕訳→登録→集計"]
+}

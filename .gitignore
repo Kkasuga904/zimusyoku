@@ -26,4 +26,6 @@ docs/_build/
 
 # Misc
 logs/*.log
+data/
+scripts/.dev-credentials.ps1
 

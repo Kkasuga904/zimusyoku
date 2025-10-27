@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { CurrencySummary, normalizeLedger } from "./ledger";
 
 describe("normalizeLedger", () => {
@@ -33,4 +33,3 @@ describe("CurrencySummary", () => {
     expect(usd?.total).toBeCloseTo(7.0);
   });
 });
-

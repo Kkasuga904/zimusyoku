@@ -1,4 +1,5 @@
 services:
+<<<<<<< HEAD
   api:
     build:
       context: ./services/api
@@ -10,13 +11,60 @@ services:
     ports:
       - "9000:9000"
     restart: unless-stopped
+=======
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      API_AUTH_ENABLED: "1"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: >
+      celery -A services.api.celery_app:celery_app worker --loglevel=info
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      API_FORCE_EAGER: "0"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+>>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
 
   console:
     build:
       context: .
       dockerfile: web/console/Dockerfile
+<<<<<<< HEAD
     depends_on:
       - api
+=======
+    environment:
+      VITE_API_URL: http://localhost:8000
+>>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
     ports:
       - "8080:80"
-    restart: unless-stopped
+    depends_on:
+      - api
+
+volumes:
+  redis-data:

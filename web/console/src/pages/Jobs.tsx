@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -185,10 +186,109 @@ const Jobs = () => {
       minute: "2-digit",
     });
   }, [lastUpdated]);
+=======
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { exportJobsCsv, fetchJobs, type JobSummary } from "../modules/jobsApi";
+import { useStrings } from "../i18n/strings";
+
+type LoadState = "loading" | "success" | "empty" | "error";
+
+const formatDateTime = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const Jobs = () => {
+  const strings = useStrings();
+  const [jobs, setJobs] = useState<JobSummary[]>([]);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [pollingError, setPollingError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const refreshJobs = useCallback(
+    async (withSpinner: boolean) => {
+      if (withSpinner) {
+        setLoadState("loading");
+        setLoadError(null);
+      }
+
+      try {
+        const data = await fetchJobs();
+        setJobs(data);
+        setLoadState(data.length > 0 ? "success" : "empty");
+        setLastUpdated(
+          new Date().toLocaleString("ja-JP", {
+            hour: "2-digit",
+            minute: "2-digit",
+            month: "2-digit",
+            day: "2-digit",
+            year: "numeric",
+          }),
+        );
+        setPollingError(null);
+      } catch (_error) {
+        if (withSpinner) {
+          setLoadError(strings.jobs.error);
+          setLoadState("error");
+        } else {
+          setPollingError(strings.jobs.pollError);
+        }
+      }
+    },
+    [strings.jobs.error, strings.jobs.pollError],
+  );
+
+  useEffect(() => {
+    void refreshJobs(true);
+  }, [refreshJobs]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void refreshJobs(false);
+    }, 15000);
+
+    return () => window.clearInterval(interval);
+  }, [refreshJobs]);
+
+  const handleExport = async () => {
+    setExportError(null);
+    setIsExporting(true);
+    try {
+      const blob = await exportJobsCsv();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "jobs.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (_error) {
+      setExportError(strings.jobs.exportError);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+>>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
 
   return (
     <section className="panel jobs-panel">
       <header className="panel-header">
+<<<<<<< HEAD
         <div>
           <h2>ジョブ一覧</h2>
           <p className="panel-subtitle">
@@ -199,6 +299,25 @@ const Jobs = () => {
           <p className="meta">最終更新: {lastUpdatedLabel}</p>
         )}
       </header>
+=======
+        <h2>{strings.jobs.title}</h2>
+        {lastUpdated && (
+          <p className="meta">{strings.jobs.updatedAt(lastUpdated)}</p>
+        )}
+      </header>
+      <p>{strings.jobs.description}</p>
+      <div className="jobs-toolbar">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={handleExport}
+          disabled={isExporting || jobs.length === 0}
+        >
+          {isExporting ? strings.jobs.exporting : strings.jobs.exportCsv}
+        </button>
+        {exportError && <span className="error-text">{exportError}</span>}
+      </div>
+>>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
 
       {pollingError && (
         <div className="info-banner" role="status">
@@ -206,13 +325,20 @@ const Jobs = () => {
           <button
             type="button"
             className="link-button"
+<<<<<<< HEAD
             onClick={handleRetry}
           >
             再読み込み
+=======
+            onClick={() => refreshJobs(true)}
+          >
+            {strings.common.retry}
+>>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
           </button>
         </div>
       )}
 
+<<<<<<< HEAD
       {loadState === "error" && (
         <div className="error-banner" role="alert">
           <p>{errorMessage}</p>
@@ -222,6 +348,27 @@ const Jobs = () => {
             </button>
             <Link className="secondary-button" to="/upload">
               アップロードを開く
+=======
+      {loadState === "loading" && (
+        <p role="status" aria-live="polite">
+          {strings.jobs.loading}
+        </p>
+      )}
+
+      {loadState === "error" && (
+        <div className="error-banner" role="alert">
+          <p>{loadError}</p>
+          <div className="button-row">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => refreshJobs(true)}
+            >
+              {strings.jobs.reload}
+            </button>
+            <Link className="secondary-button" to="/upload">
+              {strings.jobs.openUpload}
+>>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
             </Link>
           </div>
         </div>
@@ -229,13 +376,20 @@ const Jobs = () => {
 
       {loadState === "empty" && (
         <div className="empty-state" role="region" aria-live="polite">
+<<<<<<< HEAD
           <p>ジョブはまだありません。ファイルを送信して開始しましょう。</p>
           <Link className="primary-button" to="/upload">
             アップロード画面を開く
+=======
+          <p>{strings.jobs.empty}</p>
+          <Link className="primary-button" to="/upload">
+            {strings.jobs.openUpload}
+>>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
           </Link>
         </div>
       )}
 
+<<<<<<< HEAD
       <div className="table-wrapper" role="region" aria-live="polite">
         <table className="job-table">
           <caption className="sr-only">送信済みジョブの一覧</caption>
@@ -251,6 +405,55 @@ const Jobs = () => {
           <tbody>{tableBody}</tbody>
         </table>
       </div>
+=======
+      {loadState === "success" && (
+        <div className="table-wrapper" role="region" aria-live="polite">
+          <table className="job-table">
+            <caption className="sr-only">{strings.jobs.tableCaption}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{strings.jobs.columns.id}</th>
+                <th scope="col">{strings.jobs.columns.fileName}</th>
+                <th scope="col">{strings.jobs.columns.documentType}</th>
+                <th scope="col">{strings.jobs.columns.status}</th>
+                <th scope="col">{strings.jobs.columns.classification}</th>
+                <th scope="col">{strings.jobs.columns.submittedAt}</th>
+                <th scope="col">{strings.jobs.columns.updatedAt}</th>
+                <th scope="col">{strings.jobs.viewDetail}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jobs.map((job) => (
+                <tr key={job.id}>
+                  <td>{job.id}</td>
+                  <td>{job.fileName}</td>
+                  <td>{strings.upload.types[job.documentType] ?? job.documentType}</td>
+                  <td>
+                    <span
+                      className={`status-pill status-${job.status.toLowerCase()}`}
+                    >
+                      {strings.jobs.statusLabels[job.status] ?? job.status}
+                    </span>
+                  </td>
+                  <td>
+                    {job.classification
+                      ? job.classification
+                      : strings.jobs.pendingClassification}
+                  </td>
+                  <td>{formatDateTime(job.submittedAt)}</td>
+                  <td>{formatDateTime(job.updatedAt)}</td>
+                  <td>
+                    <Link className="link-button" to={`/jobs/${job.id}`}>
+                      {strings.jobs.viewDetail}
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+>>>>>>> 5501a9a (feat(auth): improve local dev login defaults)
     </section>
   );
 };
