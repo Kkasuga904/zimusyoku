@@ -19,6 +19,12 @@ npm --prefix web/console test -- --ci  # TypeScript unit/coverage
 make docs           # generate Sphinx HTML docs
 ```
 
+### One-command dev servers (Windows PowerShell)
+
+- Double-click `scripts\dev.bat` (or run `pwsh -ExecutionPolicy Bypass -File .\scripts\dev.ps1`) to spin up the API and console. The launcher ensures the virtualenv exists, installs dependencies if needed, terminates lingering listeners on ports `9000`/`5173`, then opens two shells running uvicorn and Vite. Progress and errors are also written to `logs/dev-launcher.log`, and the browser is opened to `http://localhost:5173/jobs`. You can copy `dev.bat` anywhere (e.g. Desktop); it always targets the repository at `C:\dev\zimusyoku`—update `REPO_ROOT` inside the batch file if you relocate the repo.
+- Optional flags when running via PowerShell: `-SkipInstall` to reuse existing dependencies, `-KeepPorts` to leave running processes on those ports untouched, `-NoBrowser` to skip auto-opening the UI, `-NoWait` to return control immediately instead of prompting at the end.
+- Close the spawned windows or press `Ctrl+C` inside them to stop the servers.
+
 See `AGENTS.md` for the authoritative contributor workflow, including style, QA, build, and PR policies.
 
 ## Verification

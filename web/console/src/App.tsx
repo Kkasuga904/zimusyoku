@@ -1,6 +1,8 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import Home from "./pages/Home";
+import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
+import Upload from "./pages/Upload";
 
 const App = () => {
   return (
@@ -17,6 +19,9 @@ const App = () => {
             <li>
               <NavLink to="/jobs">Jobs</NavLink>
             </li>
+            <li>
+              <NavLink to="/upload">Upload</NavLink>
+            </li>
           </ul>
         </nav>
       </header>
@@ -24,6 +29,8 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route path="/upload" element={<Upload />} />
         </Routes>
       </main>
     </div>
