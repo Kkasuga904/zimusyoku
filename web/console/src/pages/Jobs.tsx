@@ -20,6 +20,16 @@ const formatDateTime = (value: string) => {
   });
 };
 
+const formatCurrency = (value: number | null | undefined, fallback: string) => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  return `¥${value.toLocaleString("ja-JP", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })}`;
+};
+
 const Jobs = () => {
   const strings = useStrings();
   const [jobs, setJobs] = useState<JobSummary[]>([]);
@@ -173,6 +183,7 @@ const Jobs = () => {
                 <th scope="col">{strings.jobs.columns.documentType}</th>
                 <th scope="col">{strings.jobs.columns.status}</th>
                 <th scope="col">{strings.jobs.columns.classification}</th>
+                 <th scope="col">{strings.jobs.columns.amount}</th>
                 <th scope="col">{strings.jobs.columns.submittedAt}</th>
                 <th scope="col">{strings.jobs.columns.updatedAt}</th>
                 <th scope="col">{strings.jobs.viewDetail}</th>
@@ -195,6 +206,12 @@ const Jobs = () => {
                     {job.classification
                       ? job.classification
                       : strings.jobs.pendingClassification}
+                  </td>
+                  <td>
+                    {formatCurrency(
+                      job.journalEntry?.amount_gross ?? null,
+                      strings.jobs.amountUnavailable,
+                    )}
                   </td>
                   <td>{formatDateTime(job.submittedAt)}</td>
                   <td>{formatDateTime(job.updatedAt)}</td>

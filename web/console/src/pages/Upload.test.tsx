@@ -86,6 +86,56 @@ describe("Upload page", () => {
     );
   });
 
+  it("uploads multiple files sequentially", async () => {
+    registerJobMock
+      .mockResolvedValueOnce({
+        id: "JOB-3001",
+        fileName: "first.pdf",
+        documentType: "invoice",
+        status: "Queued",
+        classification: null,
+        submittedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .mockResolvedValueOnce({
+        id: "JOB-3002",
+        fileName: "second.jpeg",
+        documentType: "invoice",
+        status: "Queued",
+        classification: null,
+        submittedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+    renderUpload();
+
+    const input = screen.getByLabelText(strings.upload.selectButton, {
+      selector: "input",
+    });
+    const firstFile = new File(["one"], "first.pdf", { type: "application/pdf" });
+    const secondFile = new File(["two"], "second.jpeg", { type: "image/jpeg" });
+
+    fireEvent.change(input, { target: { files: [firstFile, secondFile] } });
+    fireEvent.click(screen.getByRole("button", { name: strings.upload.submitButton }));
+
+    await waitFor(() =>
+      expect(registerJobMock).toHaveBeenNthCalledWith(1, firstFile, "invoice"),
+    );
+    await waitFor(() =>
+      expect(registerJobMock).toHaveBeenNthCalledWith(2, secondFile, "invoice"),
+    );
+
+    expect(
+      await screen.findByText(strings.upload.successMultiple(2)),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(`${strings.upload.viewJobDetail} (JOB-3001)`)).toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(`${strings.upload.viewJobDetail} (JOB-3002)`)).toBeInTheDocument(),
+    );
+  });
+
   it("blocks files that exceed the size limit", async () => {
     renderUpload();
 
@@ -102,7 +152,7 @@ describe("Upload page", () => {
 
     expect(
       await screen.findByRole("alert"),
-    ).toHaveTextContent(strings.upload.tooLarge);
+    ).toHaveTextContent(strings.upload.fileTooLarge("large.pdf"));
     expect(registerJobMock).not.toHaveBeenCalled();
 
     fireEvent.click(
@@ -128,6 +178,6 @@ describe("Upload page", () => {
 
     expect(
       await screen.findByRole("alert"),
-    ).toHaveTextContent(strings.upload.unsupported);
+    ).toHaveTextContent(strings.upload.fileUnsupported("image.gif"));
   });
 });

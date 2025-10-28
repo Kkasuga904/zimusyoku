@@ -25,6 +25,16 @@ const formatDateTime = (value: string) => {
   });
 };
 
+const formatCurrency = (value: number | null | undefined, fallback: string) => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  return `¥${value.toLocaleString("ja-JP", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })}`;
+};
+
 const JobDetail = () => {
   const strings = useStrings();
   const { id } = useParams<{ id: string }>();
@@ -173,6 +183,33 @@ const JobDetail = () => {
         <div>
           <dt>{strings.jobDetail.updatedAt}</dt>
           <dd>{formatDateTime(job.updatedAt)}</dd>
+        </div>
+        <div>
+          <dt>{strings.jobDetail.amountGross}</dt>
+          <dd>
+            {formatCurrency(
+              job.journalEntry?.amount_gross ?? null,
+              strings.jobDetail.amountUnavailable,
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>{strings.jobDetail.amountNet}</dt>
+          <dd>
+            {formatCurrency(
+              job.journalEntry?.amount_net ?? null,
+              strings.jobDetail.amountUnavailable,
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>{strings.jobDetail.tax}</dt>
+          <dd>
+            {formatCurrency(
+              job.journalEntry?.tax ?? null,
+              strings.jobDetail.amountUnavailable,
+            )}
+          </dd>
         </div>
       </dl>
 

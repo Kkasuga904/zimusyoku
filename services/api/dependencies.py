@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from typing import Annotated
 
@@ -11,6 +12,8 @@ from jose import JWTError, jwt
 
 from .config import Settings, get_settings
 from .jobs import JobStore
+
+logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
@@ -42,6 +45,7 @@ def get_current_user_token(
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
     except JWTError:
+        logger.warning("JWT decode failed for token: %s", token)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -49,6 +53,11 @@ def get_current_user_token(
 
     email = payload.get("sub")
     if email != settings.default_user_email:
+        logger.warning(
+            "JWT subject mismatch: expected=%s actual=%s",
+            settings.default_user_email,
+            email,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",

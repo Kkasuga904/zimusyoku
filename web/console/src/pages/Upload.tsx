@@ -1,10 +1,11 @@
 ﻿import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { registerJob, type DocumentType } from "../modules/jobsApi";
+import { UnauthorizedError } from "../modules/apiClient";
 import { useStrings } from "../i18n/strings";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = [".pdf", ".csv", ".xlsx", ".zip"];
+const ALLOWED_EXTENSIONS = [".pdf", ".csv", ".xlsx", ".zip", ".jpeg", ".jpg"];
 
 const normalizeExtension = (fileName: string) => {
   const lastDot = fileName.lastIndexOf(".");
@@ -20,13 +21,14 @@ const isAllowedExtension = (fileName: string) =>
 
 const Upload = () => {
   const strings = useStrings();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [documentType, setDocumentType] = useState<DocumentType>("invoice");
   const [isUploading, setIsUploading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [uploadedJobIds, setUploadedJobIds] = useState<string[]>([]);
   const [pipelineStep, setPipelineStep] = useState<number>(0);
+  const [currentFileIndex, setCurrentFileIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const pipelineStages = useMemo(
@@ -40,19 +42,24 @@ const Upload = () => {
   );
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const selected = event.target.files?.[0] ?? null;
+    const selectedFiles = Array.from(event.target.files ?? []);
+    if (selectedFiles.length === 0) {
+      return;
+    }
     setStatusMessage(null);
     setError(null);
-    setJobId(null);
+    setUploadedJobIds([]);
     setPipelineStep(0);
-    setFile(selected);
+    setCurrentFileIndex(null);
+    setFiles((previous) => [...previous, ...selectedFiles]);
     event.target.value = "";
   };
 
   const clearSelection = () => {
-    setFile(null);
+    setFiles([]);
     setStatusMessage(null);
-    setJobId(null);
+    setUploadedJobIds([]);
+    setCurrentFileIndex(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -62,36 +69,78 @@ const Upload = () => {
   const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault();
 
-    if (!file) {
+    if (files.length === 0) {
       setError(strings.upload.noFile);
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      setError(strings.upload.tooLarge);
+    const tooLarge = files.find((item) => item.size > MAX_FILE_SIZE);
+    if (tooLarge) {
+      setError(strings.upload.fileTooLarge(tooLarge.name));
       return;
     }
 
-    if (!isAllowedExtension(file.name)) {
-      setError(strings.upload.unsupported);
+    const unsupported = files.find((item) => !isAllowedExtension(item.name));
+    if (unsupported) {
+      setError(strings.upload.fileUnsupported(unsupported.name));
       return;
     }
 
     setIsUploading(true);
-    setStatusMessage(strings.upload.uploading);
     setError(null);
+    setUploadedJobIds([]);
     setPipelineStep(1);
 
+    if (files.length === 1) {
+      setStatusMessage(strings.upload.uploading);
+      setCurrentFileIndex(0);
+    } else {
+      setStatusMessage(strings.upload.uploadingBatch(1, files.length));
+      setCurrentFileIndex(0);
+    }
+
+    const createdJobs: string[] = [];
+
     try {
-      const job = await registerJob(file, documentType);
-      setStatusMessage(strings.upload.success(job.id));
-      setJobId(job.id);
-      setFile(null);
+      for (let index = 0; index < files.length; index += 1) {
+        const currentFile = files[index];
+
+        if (index > 0) {
+          setPipelineStep(1);
+          setCurrentFileIndex(index);
+          setStatusMessage(strings.upload.uploadingBatch(index + 1, files.length));
+        }
+
+        const job = await registerJob(currentFile, documentType);
+        createdJobs.push(job.id);
+        setPipelineStep(pipelineStages.length);
+      }
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      setFiles([]);
+      setUploadedJobIds(createdJobs);
+      setCurrentFileIndex(null);
       setPipelineStep(pipelineStages.length);
-    } catch (_error) {
-      setError(strings.upload.failed);
+      setStatusMessage(
+        createdJobs.length === 1
+          ? strings.upload.success(createdJobs[0])
+          : strings.upload.successMultiple(createdJobs.length),
+      );
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        setError(strings.upload.loginRequired);
+      } else {
+        setError(strings.upload.failed);
+      }
       setStatusMessage(null);
       setPipelineStep(0);
+      if (createdJobs.length > 0) {
+        setUploadedJobIds(createdJobs);
+      }
+      setCurrentFileIndex(null);
     } finally {
       setIsUploading(false);
     }
@@ -112,6 +161,7 @@ const Upload = () => {
               type="file"
               className="sr-only"
               accept={ALLOWED_EXTENSIONS.join(",")}
+              multiple
               onChange={handleFileChange}
               disabled={isUploading}
               ref={fileInputRef}
@@ -119,15 +169,29 @@ const Upload = () => {
             <label htmlFor="upload-file" className="primary-button">
               {strings.upload.selectButton}
             </label>
-            {file ? (
-              <span className="selected-file">
-                {strings.upload.selectedFile(file.name)}
-              </span>
+            {files.length > 0 ? (
+              <div className="selected-file">
+                <p>{strings.upload.selectedFiles(files.length)}</p>
+                <ul className="selected-file-list">
+                  {files.map((selectedFile, index) => (
+                    <li
+                      key={`${selectedFile.name}-${selectedFile.lastModified}-${index}`}
+                      className={
+                        isUploading && currentFileIndex === index
+                          ? "selected-file-item active"
+                          : "selected-file-item"
+                      }
+                    >
+                      {selectedFile.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : (
               <span className="selected-file">{strings.upload.noFile}</span>
             )}
           </div>
-          {file && (
+          {files.length > 0 && (
             <div className="button-row">
               <button
                 type="button"
@@ -170,7 +234,7 @@ const Upload = () => {
           <button
             type="submit"
             className="primary-button wide"
-            disabled={!file || isUploading}
+            disabled={files.length === 0 || isUploading}
           >
             {isUploading ? (
               <>
@@ -213,12 +277,16 @@ const Upload = () => {
           <Link className="secondary-button" to="/jobs">
             {strings.upload.linkToJobs}
           </Link>
-          {jobId && (
-            <p className="helper-text">
-              <Link to={`/jobs/${jobId}`}>
-                {strings.upload.viewJobDetail} ({jobId})
-              </Link>
-            </p>
+          {uploadedJobIds.length > 0 && (
+            <ul className="job-link-list">
+              {uploadedJobIds.map((id) => (
+                <li key={id}>
+                  <Link to={`/jobs/${id}`}>
+                    {strings.upload.viewJobDetail} ({id})
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </fieldset>
       </form>

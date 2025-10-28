@@ -281,6 +281,34 @@ button {
   word-break: break-word;
 }
 
+.selected-file p {
+  margin: 0;
+}
+
+.selected-file-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.25rem;
+  color: #1f2937;
+}
+
+.selected-file-item {
+  line-height: 1.4;
+}
+
+.selected-file-item.active {
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.job-link-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.job-link-list li {
+  margin-bottom: 0.25rem;
+}
+
 .helper-text {
   margin: 0;
   font-size: 0.9rem;
@@ -313,7 +341,7 @@ button {
 }
 
 .pipeline-step::before {
-  content: "窶｢";
+  content: "●";
   font-size: 1.2rem;
   color: inherit;
 }
@@ -622,12 +650,25 @@ button {
   border-radius: 12px;
   padding: 1.5rem;
   border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
   min-height: 320px;
 }
 
 .chart-card h3 {
   margin-top: 0;
   margin-bottom: 1rem;
+}
+
+.chart-frame {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+}
+
+.chart-frame canvas {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .unauthenticated .content {
@@ -688,3 +729,4 @@ button {
     padding: 0;
   }
 }
+

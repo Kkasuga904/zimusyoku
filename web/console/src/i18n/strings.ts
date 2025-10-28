@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 
 export type SupportedLocale = "ja" | "en";
 
@@ -39,14 +39,20 @@ export type Strings = {
     linkToJobs: string;
     noFile: string;
     selectedFile: (name: string) => string;
+    selectedFiles: (count: number) => string;
     changeFile: string;
     clearSelection: string;
     jobsShortcut: string;
     tooLarge: string;
+    fileTooLarge: (name: string) => string;
     unsupported: string;
+    fileUnsupported: (name: string) => string;
     uploading: string;
+    uploadingBatch: (current: number, total: number) => string;
     success: (jobId: string) => string;
+    successMultiple: (count: number) => string;
     failed: string;
+    loginRequired: string;
     tryAgain: string;
     viewJobDetail: string;
     ariaStatus: string;
@@ -73,6 +79,7 @@ export type Strings = {
       documentType: string;
       status: string;
       classification: string;
+      amount: string;
       submittedAt: string;
       updatedAt: string;
     };
@@ -90,6 +97,7 @@ export type Strings = {
     exporting: string;
     exportError: string;
     pendingClassification: string;
+    amountUnavailable: string;
   };
   jobDetail: {
     title: string;
@@ -107,6 +115,10 @@ export type Strings = {
     fileName: string;
     startedAt: string;
     updatedAt: string;
+    amountGross: string;
+    amountNet: string;
+    tax: string;
+    amountUnavailable: string;
     backToJobs: string;
     notFound: string;
   };
@@ -182,28 +194,34 @@ export const ja: Strings = {
   upload: {
     title: "ファイルのアップロード",
     description:
-      "請求書・領収書・見積書をアップロードすると、OCR解析→AI分類→仕訳作成まで自動で進みます。",
+      "請求書・領収書・見積書をアップロードすると、OCR解析とAI分類、仕訳作成まで自動で進みます。",
     step1: "1. ファイルを選択",
     step2: "2. 送信・処理状況を確認",
-    step3: "3. ジョブ結果を確認",
-    instructions: "ファイルを選択し「送信する」を押すと自動処理が開始されます。",
-    helperFormats: "対応形式: PDF / CSV / XLSX / ZIP （最大 50MB）",
+    step3: "3. 結果を確認",
+    instructions: "ファイルを選択し「送信する」を押すと自動で処理が開始されます。",
+    helperFormats: "対応形式: PDF / CSV / XLSX / ZIP / JPEG（JPG）（最大 50MB）",
     selectButton: "ファイルを選択",
     submitButton: "送信する",
     linkToJobs: "ジョブ一覧を開く",
     noFile: "ファイルが選択されていません。",
     selectedFile: (name) => `選択中: ${name}`,
+    selectedFiles: (count) => `選択中のファイル: ${count}件`,
     changeFile: "別のファイルを選択",
     clearSelection: "選択をクリア",
     jobsShortcut: "送信後はジョブ一覧で進捗が確認できます。",
     tooLarge: "ファイルサイズが大きすぎます（最大 50MB）。",
-    unsupported: "対応していない形式です。PDF / CSV / XLSX / ZIP をご利用ください。",
-    uploading: "送信中…",
-    success: (jobId) => `ジョブ ${jobId} を受け付けました。分類結果が完了するとジョブ一覧に反映されます。`,
-    failed: "アップロードに失敗しました。通信環境を確認のうえ再度お試しください。",
-    tryAgain: "もう一度送信",
-    viewJobDetail: "ジョブ詳細を開く",
-    ariaStatus: "アップロード状況",
+    fileTooLarge: (name) => `${name} のサイズが大きすぎます（最大 50MB）。`,
+    unsupported: "対応していない形式です。PDF / CSV / XLSX / ZIP / JPEG（JPG）をご利用ください。",
+    fileUnsupported: (name) => `${name} は対応していない形式です。PDF / CSV / XLSX / ZIP / JPEG（JPG）をご利用ください。`,
+    uploading: "送信中...",
+    uploadingBatch: (current, total) => `ファイルを送信中 (${current}/${total})`,
+    success: (jobId) => `ジョブ ${jobId} を受け付けました。結果はジョブ一覧から確認できます。`,
+    successMultiple: (count) => `${count} 件のファイルを送信しました。`,
+    failed: "アップロードに失敗しました。ネットワークを確認のうえ再度お試しください。",
+    loginRequired: "ログインしてから再度お試しください。",
+    tryAgain: "もう一度試す",
+    viewJobDetail: "ジョブ詳細を見る",
+    ariaStatus: "処理の進捗状況",
     selectType: "書類種別を選択",
     types: {
       invoice: "請求書",
@@ -221,59 +239,65 @@ export const ja: Strings = {
     title: "ジョブ一覧",
     description:
       "アップロード済みのファイルと処理状況を確認します。分類が完了すると勘定科目が表示されます。",
-    tableCaption: "実行されたジョブ一覧",
+    tableCaption: "送信済みジョブ",
     columns: {
       id: "ジョブID",
       fileName: "ファイル名",
       documentType: "区分",
       status: "ステータス",
       classification: "分類結果",
+      amount: "金額（税込）",
       submittedAt: "受付日時",
       updatedAt: "最終更新",
     },
     loading: "ジョブを読み込み中…",
     empty: "まだジョブがありません。ファイルをアップロードしてください。",
     emptyAction: "ファイルをアップロード",
-    openUpload: "アップロード画面を開く",
+    openUpload: "アップロード画面へ",
     reload: "再読み込み",
     error: "ジョブの取得に失敗しました。時間をおいて再度お試しください。",
-    pollError: "最新の状態を取得できませんでした。通信環境を確認してください。",
+    pollError: "最新の状態を取得できませんでした。ネットワークを確認のうえ再試行してください。",
     updatedAt: (time) => `更新: ${time}`,
     statusLabels: {
-      Queued: "受付済み",
+      Queued: "待機中",
       Running: "処理中",
       Ok: "完了",
       Failed: "失敗",
     },
     viewDetail: "詳細を見る",
     exportCsv: "CSVをダウンロード",
-    exporting: "作成中...",
-    exportError: "CSVの出力に失敗しました。",
+    exporting: "生成中…",
+    exportError: "CSVの生成に失敗しました。",
     pendingClassification: "分類待ち",
+    amountUnavailable: "金額なし",
   },
   jobDetail: {
     title: "ジョブ詳細",
     intro: "処理状況を確認します。完了すると分類結果がジョブ一覧に反映されます。",
-    statusQueued: "受付済み",
+    statusQueued: "待機中",
     statusRunning: "処理中",
     statusOk: "完了",
     statusFailed: "失敗",
     statusDescriptions: {
-      Queued: "間もなく処理が開始されます。",
-      Running: "OCR解析とAI分類を実行中です。",
-      Ok: "処理が完了しました。CSV出力と会計連携の準備ができています。",
-      Failed: "処理に失敗しました。ファイル内容を確認し再送信してください。",
+      Queued: "処理待ちの状態です。まもなく開始します。",
+      Running: "OCR と AI 分類を実行中です。しばらくお待ちください。",
+      Ok: "処理が完了しました。必要に応じてCSVを出力できます。",
+      Failed: "処理に失敗しました。ファイル内容を確認して再送信してください。",
     },
     pollingInfo: "ステータスは5秒ごとに自動更新されます。",
     stopPolling: "自動更新を停止",
     resumePolling: "自動更新を再開",
-    pollingStopped: "自動更新は停止中です。再開ボタンを押してください。",
+    pollingStopped: "自動更新を停止しています。再開ボタンを押してください。",
     lastChecked: (time) => `最終確認時刻: ${time}`,
     fileName: "ファイル名",
     startedAt: "受付日時",
     updatedAt: "最終更新",
+    amountGross: "金額（税込）",
+    amountNet: "金額（税抜）",
+    tax: "税額",
+    amountUnavailable: "金額情報がありません。",
     backToJobs: "ジョブ一覧へ戻る",
-    notFound: "該当するジョブが見つかりませんでした。ジョブ一覧から再度選択してください。",
+    notFound: "該当するジョブが見つかりませんでした。ジョブ一覧から選び直してください。",
   },
   help: {
     title: "クイックヘルプ",
@@ -361,40 +385,46 @@ export const en: Strings = {
     guideDescription: "See the guide for detailed steps and troubleshooting tips.",
   },
   upload: {
-    title: "Upload documents",
+    title: "File upload",
     description:
-      "Send invoices, receipts, or estimates. The system will orchestrate OCR → AI classification → journal posting.",
-    step1: "1. Choose a file",
-    step2: "2. Send & monitor progress",
-    step3: "3. Review the job",
-    instructions: "Select a file and press “Send E. The automation pipeline starts immediately.",
-    helperFormats: "Supported formats: PDF / CSV / XLSX / ZIP (up to 50MB)",
+      "Upload invoices, receipts, or estimates to automatically run OCR, AI classification, and journal posting.",
+    step1: "1. Choose files",
+    step2: "2. Send & track progress",
+    step3: "3. Review the results",
+    instructions:
+      'Select one or more files and press "Send" to start processing automatically.',
+    helperFormats: "Supported formats: PDF / CSV / XLSX / ZIP / JPEG (JPG) (up to 50MB)",
     selectButton: "Choose a file",
     submitButton: "Send",
     linkToJobs: "Open jobs list",
-    noFile: "No file selected yet.",
+    noFile: "No file selected.",
     selectedFile: (name) => `Selected: ${name}`,
-    changeFile: "Choose another file",
+    selectedFiles: (count) => `Selected files (${count})`,
+    changeFile: "Choose different files",
     clearSelection: "Clear selection",
-    jobsShortcut: "After sending, track progress on the Jobs page.",
-    tooLarge: "The file is too large (maximum 50MB).",
-    unsupported: "Unsupported format. Please use PDF, CSV, XLSX, or ZIP.",
-    uploading: "Sending…",
-    success: (jobId) =>
-      `Job ${jobId} received. The classification result will appear on the Jobs page once processing finishes.`,
+    jobsShortcut: "After sending you can monitor progress on the Jobs page.",
+    tooLarge: "File size is too large (max 50MB).",
+    fileTooLarge: (name) => `${name} is too large (max 50MB).`,
+    unsupported: "Unsupported format. Please use PDF, CSV, XLSX, ZIP, or JPEG (JPG).",
+    fileUnsupported: (name) => `${name} is not a supported format. Use PDF, CSV, XLSX, ZIP, or JPEG (JPG).`,
+    uploading: "Sending...",
+    uploadingBatch: (current, total) => `Uploading file ${current} of ${total}...`,
+    success: (jobId) => `Job ${jobId} has been submitted. Check the Jobs page for updates.`,
+    successMultiple: (count) => `Uploaded ${count} files successfully.`,
     failed: "Upload failed. Please check your connection and try again.",
-    tryAgain: "Retry",
-    viewJobDetail: "Open job detail",
-    ariaStatus: "Upload status",
-    selectType: "Select document type",
+    loginRequired: "Please sign in and try again.",
+    tryAgain: "Try again",
+    viewJobDetail: "View job detail",
+    ariaStatus: "Upload progress status",
+    selectType: "Choose document type",
     types: {
       invoice: "Invoice",
       receipt: "Receipt",
       estimate: "Estimate",
     },
     pipeline: {
-      uploaded: "Uploaded",
-      ocr: "Running OCR",
+      uploaded: "Upload complete",
+      ocr: "OCR in progress",
       classify: "AI classification",
       posted: "Journal posted",
     },
@@ -410,6 +440,7 @@ export const en: Strings = {
       documentType: "Type",
       status: "Status",
       classification: "Category",
+      amount: "Amount (gross)",
       submittedAt: "Submitted",
       updatedAt: "Last update",
     },
@@ -433,6 +464,7 @@ export const en: Strings = {
     exporting: "Preparing…",
     exportError: "Export failed. Please retry later.",
     pendingClassification: "Pending",
+    amountUnavailable: "Not available",
   },
   jobDetail: {
     title: "Job detail",
@@ -456,6 +488,10 @@ export const en: Strings = {
     fileName: "File name",
     startedAt: "Submitted",
     updatedAt: "Last update",
+    amountGross: "Amount (gross)",
+    amountNet: "Amount (net)",
+    tax: "Tax",
+    amountUnavailable: "Not available",
     backToJobs: "Back to jobs",
     notFound:
       "We could not find that job. Please return to the jobs list and choose another entry.",

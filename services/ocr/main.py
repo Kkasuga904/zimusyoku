@@ -79,6 +79,36 @@ def _with_tesseract(path: Path, language: str) -> str | None:
     return text.strip() or None
 
 
+def _with_rapidocr(path: Path, _: str) -> str | None:
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+    except Exception:  # pragma: no cover - optional dependency
+        return None
+
+    try:
+        ocr = RapidOCR()
+    except Exception as exc:  # pragma: no cover - runtime guard
+        logger.debug("RapidOCR initialization failed: %s", exc)
+        return None
+
+    try:
+        result, _ = ocr(str(path))
+    except Exception as exc:  # pragma: no cover - runtime guard
+        logger.debug("RapidOCR extraction failed: %s", exc)
+        return None
+
+    lines: list[str] = []
+    for entry in result or []:
+        try:
+            text = entry[1]
+        except (IndexError, TypeError):
+            continue
+        if text:
+            lines.append(str(text))
+    content = "\n".join(lines).strip()
+    return content or None
+
+
 def _from_metadata(path: Path, _: str) -> str | None:
     try:
         from PIL import Image
@@ -110,6 +140,7 @@ def _from_sidecar(path: Path, _: str) -> str | None:
 EXTRACTORS: tuple[ExtractFn, ...] = (
     _with_paddle,
     _with_tesseract,
+    _with_rapidocr,
     _from_metadata,
     _from_sidecar,
 )

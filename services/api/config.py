@@ -38,6 +38,8 @@ class Settings:
     auth_enabled: bool
     default_user_email: str
     default_user_password: str
+    cors_origins: tuple[str, ...]
+    cors_origin_regex: str | None
 
     def ensure_directories(self) -> None:
         """Create required directories when missing."""
@@ -52,8 +54,36 @@ def get_settings() -> Settings:
     """Load settings once per process."""
     data_root = Path(os.environ.get("DATA_DIR", "data")).resolve()
 
-    broker = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
-    backend = os.environ.get("CELERY_RESULT_BACKEND", broker)
+    task_always_eager = _as_bool(
+        os.environ.get("CELERY_TASK_ALWAYS_EAGER"),
+        default=_as_bool(os.environ.get("API_FORCE_EAGER"), default=True),
+    )
+
+    broker = os.environ.get("CELERY_BROKER_URL")
+    if broker is None:
+        broker = "memory://" if task_always_eager else "redis://localhost:6379/0"
+
+    backend = os.environ.get("CELERY_RESULT_BACKEND")
+    if backend is None:
+        backend = "cache+memory://" if task_always_eager else broker
+    raw_origins = os.environ.get("API_CORS_ORIGINS")
+    if raw_origins:
+        cors_origins = tuple(
+            origin.strip()
+            for origin in raw_origins.split(",")
+            if origin.strip()
+        )
+    else:
+        cors_origins = (
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+        )
+
+    cors_origin_regex = os.environ.get("API_CORS_ORIGIN_REGEX")
+    if cors_origin_regex is None:
+        cors_origin_regex = r"http://(localhost|127\.0\.0\.1):\d+"
 
     return Settings(
         data_dir=data_root,
@@ -62,14 +92,13 @@ def get_settings() -> Settings:
         jobs_path=(data_root / "jobs.json"),
         celery_broker_url=broker,
         celery_result_backend=backend,
-        celery_task_always_eager=_as_bool(
-            os.environ.get("CELERY_TASK_ALWAYS_EAGER"),
-            default=_as_bool(os.environ.get("API_FORCE_EAGER"), default=True),
-        ),
+        celery_task_always_eager=task_always_eager,
         jwt_secret=os.environ.get("API_JWT_SECRET", "dev-secret"),
         jwt_algorithm=os.environ.get("API_JWT_ALGORITHM", "HS256"),
         access_token_minutes=int(os.environ.get("API_JWT_EXPIRES_MINUTES", "60")),
         auth_enabled=_as_bool(os.environ.get("API_AUTH_ENABLED"), default=True),
         default_user_email=os.environ.get("API_DEFAULT_USER_EMAIL", "admin@example.com"),
         default_user_password=os.environ.get("API_DEFAULT_USER_PASSWORD", "adminpass"),
+        cors_origins=cors_origins,
+        cors_origin_regex=cors_origin_regex,
     )

@@ -33,6 +33,27 @@ def _create_sample_image(path: Path, *, vendor: str, amount: int, tax: int, cate
     image.save(path, "PNG", pnginfo=info)
 
 
+def _create_drawn_image(path: Path, *, vendor: str, amount: int, tax: int, category: str) -> None:
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGB", (480, 240), color="white")
+    draw = ImageDraw.Draw(image)
+    lines = [
+        f"Vendor: {vendor}",
+        f"Total: {amount}",
+        f"Tax: {tax}",
+        "Date: 2025-08-15",
+        f"Category: {category}",
+    ]
+
+    y = 24
+    for line in lines:
+        draw.text((20, y), line, fill="black")
+        y += 32
+
+    image.save(path, "PNG")
+
+
 @pytest.fixture()
 def api_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     data_dir = tmp_path / "data"
@@ -127,3 +148,44 @@ def test_classification_rules() -> None:
     assert result["category"] in {"交通費", "旅費交通費"}
     assert result["amount_gross"] == 1200
     assert result["tax"] == 120
+
+
+def test_pipeline_uses_rapidocr_when_metadata_missing(
+    api_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    rapidocr = pytest.importorskip("rapidocr_onnxruntime")
+    assert rapidocr is not None  # appease linters
+
+    headers = _authenticate(api_client)
+    image_path = tmp_path / "drawn.png"
+    vendor = "Kyoto Taxi"
+    amount = 6789
+    tax = 678
+    _create_drawn_image(
+        image_path,
+        vendor=vendor,
+        amount=amount,
+        tax=tax,
+        category="交通費",
+    )
+
+    with image_path.open("rb") as handle:
+        response = api_client.post(
+            "/api/ocr/upload",
+            data={"document_type": "receipt"},
+            files={"document": ("drawn.png", handle, "image/png")},
+            headers=headers,
+        )
+
+    assert response.status_code == 202
+    jobs_response = api_client.get("/api/jobs", headers=headers)
+    assert jobs_response.status_code == 200
+    jobs_payload = jobs_response.json()["jobs"]
+    assert jobs_payload
+    job_entry = next((item for item in jobs_payload if item["fileName"] == "drawn.png"), None)
+    assert job_entry is not None
+    journal = job_entry["journalEntry"]
+    assert journal is not None
+    assert pytest.approx(journal["amount_gross"], rel=0.01) == float(amount)
+    assert pytest.approx(journal["tax"], rel=0.05) == float(tax)

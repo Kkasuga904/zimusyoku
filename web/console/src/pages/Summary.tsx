@@ -119,21 +119,25 @@ const Summary = () => {
             <div className="chart-grid">
               <div className="chart-card">
                 <h3>{strings.summary.pieTitle}</h3>
-                <Doughnut data={pieData} />
+                <div className="chart-frame">
+                  <Doughnut data={pieData} options={{ maintainAspectRatio: false }} />
+                </div>
               </div>
               <div className="chart-card">
                 <h3>{strings.summary.barTitle}</h3>
                 {barData && (
-                  <Bar
-                    data={barData}
-                    options={{
-                      plugins: {
-                        legend: { display: false },
-                      },
-                      responsive: true,
-                      maintainAspectRatio: false,
-                    }}
-                  />
+                  <div className="chart-frame">
+                    <Bar
+                      data={barData}
+                      options={{
+                        plugins: {
+                          legend: { display: false },
+                        },
+                        responsive: true,
+                        maintainAspectRatio: false,
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             </div>

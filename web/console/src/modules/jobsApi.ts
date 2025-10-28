@@ -4,6 +4,18 @@ export type DocumentType = "invoice" | "receipt" | "estimate";
 
 export type JobStatus = "Queued" | "Running" | "Ok" | "Failed";
 
+export type JournalEntry = {
+  vendor: string;
+  account: string;
+  memo: string;
+  amount_gross: number;
+  amount_net: number;
+  tax: number;
+  currency: string;
+  document_type: string;
+  recorded_at: string;
+};
+
 export type JobSummary = {
   id: string;
   fileName: string;
@@ -12,6 +24,7 @@ export type JobSummary = {
   classification?: string | null;
   submittedAt: string;
   updatedAt: string;
+  journalEntry?: JournalEntry | null;
 };
 
 export type JobDetail = JobSummary & {
@@ -20,6 +33,7 @@ export type JobDetail = JobSummary & {
     text: string;
     fields: Record<string, unknown>;
   } | null;
+  journalEntry?: JournalEntry | null;
 };
 
 type UploadResponse = {
