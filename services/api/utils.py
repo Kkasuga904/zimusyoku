@@ -35,4 +35,5 @@ def job_to_model(job: Job) -> JobModel:
         error=job.error,
         ocr=ocr_model,
         journalEntry=job.journal_entry,
+        metadata=job.metadata or {},
     )

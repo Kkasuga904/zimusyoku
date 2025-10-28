@@ -315,6 +315,19 @@ button {
   color: #475569;
 }
 
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
 .status-message {
   min-height: 1.5rem;
   font-weight: 600;

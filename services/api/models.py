@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -45,6 +45,7 @@ class JobModel(BaseModel):
 
     ocr: OCRResultModel | None = None
     journal_entry: JournalEntryModel | None = Field(None, alias="journalEntry")
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     class Config:
         allow_population_by_field_name = True
@@ -52,6 +53,30 @@ class JobModel(BaseModel):
 
 class UploadResponse(BaseModel):
     job: JobModel
+
+
+class AmountCandidateModel(BaseModel):
+    type: Literal["total", "subtotal", "tax"]
+    value: int
+    score: float
+    text: str
+    bbox: list[tuple[int, int]]
+
+
+class AmountFieldsModel(BaseModel):
+    currency: str = "JPY"
+    subtotal: int | None = None
+    tax: int | None = None
+    total: int | None = None
+    conf: float | None = None
+
+
+class AmountExtractionResponse(BaseModel):
+    ok: bool
+    fields: AmountFieldsModel | None = None
+    candidates: list[AmountCandidateModel] = Field(default_factory=list)
+    debug: dict[str, Any] | None = None
+    reason: str | None = None
 
 
 class JobsResponse(BaseModel):

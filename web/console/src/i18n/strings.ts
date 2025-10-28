@@ -57,6 +57,8 @@ export type Strings = {
     viewJobDetail: string;
     ariaStatus: string;
     selectType: string;
+    enhanceLabel: string;
+    enhanceHelp: string;
     types: {
       invoice: string;
       receipt: string;
@@ -79,6 +81,7 @@ export type Strings = {
       documentType: string;
       status: string;
       classification: string;
+      extractedTotal: string;
       amount: string;
       submittedAt: string;
       updatedAt: string;
@@ -223,6 +226,8 @@ export const ja: Strings = {
     viewJobDetail: "ジョブ詳細を見る",
     ariaStatus: "処理の進捗状況",
     selectType: "書類種別を選択",
+    enhanceLabel: "読み取り強化（うまく読めない時）",
+    enhanceHelp: "明るさや角度を自動調整しOCRをやり直します",
     types: {
       invoice: "請求書",
       receipt: "領収書",
@@ -417,6 +422,8 @@ export const en: Strings = {
     viewJobDetail: "View job detail",
     ariaStatus: "Upload progress status",
     selectType: "Choose document type",
+    enhanceLabel: "Enhance reading (when OCR struggles)",
+    enhanceHelp: "Adjusts brightness and resolution before trying OCR again.",
     types: {
       invoice: "Invoice",
       receipt: "Receipt",
@@ -440,6 +447,7 @@ export const en: Strings = {
       documentType: "Type",
       status: "Status",
       classification: "Category",
+      extractedTotal: "Extracted total",
       amount: "Amount (gross)",
       submittedAt: "Submitted",
       updatedAt: "Last update",

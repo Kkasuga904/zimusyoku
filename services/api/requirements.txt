@@ -3,3 +3,6 @@ uvicorn[standard]
 pydantic>=2,<3
 python-multipart
 httpx
+opencv-python-headless>=4.10.0.0
+pytesseract>=0.3.13
+paddleocr>=2.8.0

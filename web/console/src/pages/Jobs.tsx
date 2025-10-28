@@ -183,7 +183,8 @@ const Jobs = () => {
                 <th scope="col">{strings.jobs.columns.documentType}</th>
                 <th scope="col">{strings.jobs.columns.status}</th>
                 <th scope="col">{strings.jobs.columns.classification}</th>
-                 <th scope="col">{strings.jobs.columns.amount}</th>
+                <th scope="col">{strings.jobs.columns.extractedTotal}</th>
+                <th scope="col">{strings.jobs.columns.amount}</th>
                 <th scope="col">{strings.jobs.columns.submittedAt}</th>
                 <th scope="col">{strings.jobs.columns.updatedAt}</th>
                 <th scope="col">{strings.jobs.viewDetail}</th>
@@ -206,6 +207,18 @@ const Jobs = () => {
                     {job.classification
                       ? job.classification
                       : strings.jobs.pendingClassification}
+                  </td>
+                  <td>
+                    {(() => {
+                      const metadata = job.metadata as Record<string, unknown> | undefined;
+                      const amounts = (metadata?.amounts ?? null) as
+                        | { total?: number | null }
+                        | null;
+                      if (amounts?.total === null || amounts?.total === undefined) {
+                        return strings.jobs.amountUnavailable;
+                      }
+                      return `¥${amounts.total.toLocaleString("ja-JP")}`;
+                    })()}
                   </td>
                   <td>
                     {formatCurrency(

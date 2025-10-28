@@ -29,6 +29,7 @@ const Upload = () => {
   const [uploadedJobIds, setUploadedJobIds] = useState<string[]>([]);
   const [pipelineStep, setPipelineStep] = useState<number>(0);
   const [currentFileIndex, setCurrentFileIndex] = useState<number | null>(null);
+  const [enhance, setEnhance] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const pipelineStages = useMemo(
@@ -111,7 +112,7 @@ const Upload = () => {
           setStatusMessage(strings.upload.uploadingBatch(index + 1, files.length));
         }
 
-        const job = await registerJob(currentFile, documentType);
+        const job = await registerJob(currentFile, documentType, { enhance });
         createdJobs.push(job.id);
         setPipelineStep(pipelineStages.length);
       }
@@ -227,6 +228,16 @@ const Upload = () => {
             <option value="receipt">{strings.upload.types.receipt}</option>
             <option value="estimate">{strings.upload.types.estimate}</option>
           </select>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={enhance}
+              onChange={(event) => setEnhance(event.target.checked)}
+              disabled={isUploading}
+            />
+            <span>{strings.upload.enhanceLabel}</span>
+          </label>
+          <p className="helper-text">{strings.upload.enhanceHelp}</p>
         </fieldset>
         <fieldset className="step-card">
           <legend>{strings.upload.step2}</legend>

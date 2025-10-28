@@ -25,6 +25,7 @@ export type JobSummary = {
   submittedAt: string;
   updatedAt: string;
   journalEntry?: JournalEntry | null;
+  metadata?: Record<string, unknown>;
 };
 
 export type JobDetail = JobSummary & {
@@ -47,12 +48,15 @@ type JobsResponse = {
 export const registerJob = async (
   file: File,
   documentType: DocumentType,
+  opts?: { enhance?: boolean },
 ): Promise<JobSummary> => {
   const formData = new FormData();
   formData.append("document", file);
   formData.append("document_type", documentType);
 
-  const response = await apiRequest<UploadResponse>("/api/ocr/upload", {
+  const endpoint = opts?.enhance ? "/api/ocr/upload?enhance=true" : "/api/ocr/upload";
+
+  const response = await apiRequest<UploadResponse>(endpoint, {
     method: "POST",
     body: formData,
   });
