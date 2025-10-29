@@ -10,6 +10,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
+from services.api.approvals import ApprovalStore
+from services.integrations import BankAPIClient, FreeeAPIClient, YayoiSaaSClient
+
 from .config import Settings, get_settings
 from .jobs import JobStore
 
@@ -28,12 +31,53 @@ def get_job_store() -> JobStore:
     return _job_store()
 
 
+@lru_cache(maxsize=1)
+def _approval_store() -> ApprovalStore:
+    settings = get_settings()
+    return ApprovalStore(settings.approvals_path)
+
+
+def get_approval_store() -> ApprovalStore:
+    return _approval_store()
+
+
+@lru_cache(maxsize=1)
+def _freee_client() -> FreeeAPIClient:
+    settings = get_settings()
+    return FreeeAPIClient(settings.integrations_dir / "freee")
+
+
+def get_freee_client() -> FreeeAPIClient:
+    return _freee_client()
+
+
+@lru_cache(maxsize=1)
+def _yayoi_client() -> YayoiSaaSClient:
+    settings = get_settings()
+    return YayoiSaaSClient(settings.integrations_dir / "yayoi")
+
+
+def get_yayoi_client() -> YayoiSaaSClient:
+    return _yayoi_client()
+
+
+@lru_cache(maxsize=1)
+def _bank_client() -> BankAPIClient:
+    settings = get_settings()
+    return BankAPIClient(settings.integrations_dir / "bank")
+
+
+def get_bank_client() -> BankAPIClient:
+    return _bank_client()
+
+
 def get_settings_dep() -> Settings:
     return get_settings()
 
 
 TokenDep = Annotated[str, Depends(oauth2_scheme)]
 SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
+
 
 def get_current_user_token(
     token: TokenDep,
@@ -43,7 +87,9 @@ def get_current_user_token(
         return "anonymous"
 
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
+        )
     except JWTError:
         logger.warning("JWT decode failed for token: %s", token)
         raise HTTPException(

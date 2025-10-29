@@ -28,7 +28,9 @@ class Repo:
         return json.loads(raw)
 
     def _save_jobs(self, jobs: list[dict[str, Any]]) -> None:
-        self.jobs_file.write_text(json.dumps(jobs, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.jobs_file.write_text(
+            json.dumps(jobs, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     def _now(self) -> str:
         return datetime.now(UTC).isoformat()
@@ -67,7 +69,9 @@ class Repo:
 
     def list_jobs(self, limit: int, offset: int) -> list[Job]:
         with self._lock:
-            jobs = sorted(self._load_jobs(), key=lambda item: item["created_at"], reverse=True)
+            jobs = sorted(
+                self._load_jobs(), key=lambda item: item["created_at"], reverse=True
+            )
         sliced = jobs[offset : offset + limit]
         return [self._to_job(item) for item in sliced]
 

@@ -6,6 +6,7 @@ import { useStrings } from "./i18n/strings";
 import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
 import Summary from "./pages/Summary";
+import Approvals from "./pages/Approvals";
 import Upload from "./pages/Upload";
 import { initializeToken, login as performLogin, logout as performLogout } from "./modules/authClient";
 import { ApiError, UnauthorizedError } from "./modules/apiClient";
@@ -93,6 +94,9 @@ const App = () => {
             <li>
               <NavLink to="/jobs">{strings.nav.jobs}</NavLink>
             </li>
+            <li>
+              <NavLink to="/approvals">{strings.nav.approvals}</NavLink>
+            </li>
           </ul>
         </nav>
         <div className="header-actions">
@@ -117,6 +121,7 @@ const App = () => {
           <Route path="/upload" element={<Upload />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route path="/approvals" element={<Approvals />} />
         </Routes>
       </main>
       <HelpModal isOpen={isHelpOpen} onClose={closeHelp} strings={strings.help} />

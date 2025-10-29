@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable, List, Optional
+from typing import Any
 
 import cv2
 import numpy as np
 import pytesseract
 
-from .preprocess import PreprocessResult, PreprocessedOrientation, preprocess_image
+from .preprocess import PreprocessedOrientation, PreprocessResult, preprocess_image
 
 
 @dataclass(slots=True)
@@ -49,7 +50,9 @@ class RecognitionResult:
     def to_debug(self) -> dict[str, Any]:
         return {
             "orientation": self.candidate.debug(),
-            "preprocess": [orientation.debug for orientation in self.preprocess.orientations],
+            "preprocess": [
+                orientation.debug for orientation in self.preprocess.orientations
+            ],
         }
 
 
@@ -88,10 +91,13 @@ def _recognize_paddle(image: np.ndarray) -> list[OCRSpan]:
                 text, confidence = entry[1]
             except (TypeError, IndexError, ValueError):
                 continue
+            conf_value = float(confidence or 0.0)
+            if conf_value < 0.5:
+                continue
             spans.append(
                 OCRSpan(
                     text=text.strip(),
-                    confidence=float(confidence or 0.0),
+                    confidence=conf_value,
                     bbox=bbox,
                 )
             )
@@ -101,7 +107,9 @@ def _recognize_paddle(image: np.ndarray) -> list[OCRSpan]:
 def _recognize_tesseract(image: np.ndarray, *, psm: int) -> list[OCRSpan]:
     rgb = _ensure_rgb(image)
     config = f"--oem 1 --psm {psm} -l jpn+eng tessedit_char_whitelist=0123456789.,¥￥円ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    data = pytesseract.image_to_data(rgb, config=config, output_type=pytesseract.Output.DICT)
+    data = pytesseract.image_to_data(
+        rgb, config=config, output_type=pytesseract.Output.DICT
+    )
     spans: list[OCRSpan] = []
     for text, conf, x, y, w, h in zip(
         data.get("text", []),
@@ -109,12 +117,15 @@ def _recognize_tesseract(image: np.ndarray, *, psm: int) -> list[OCRSpan]:
         data.get("left", []),
         data.get("top", []),
         data.get("width", []),
-        data.get("height", []),
+        data.get("height", []), strict=False,
     ):
         if not text or float(conf) < 0:
             continue
+        conf_value = float(conf) / 100.0
+        if conf_value < 0.6:
+            continue
         bbox = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
-        spans.append(OCRSpan(text=text.strip(), confidence=float(conf) / 100.0, bbox=bbox))
+        spans.append(OCRSpan(text=text.strip(), confidence=conf_value, bbox=bbox))
     return spans
 
 
@@ -124,7 +135,9 @@ def _merge_spans(spans: Iterable[OCRSpan]) -> list[OCRSpan]:
         if not span.text:
             continue
         key = span.text
-        duplicate = next((existing for existing in merged if existing.text == key), None)
+        duplicate = next(
+            (existing for existing in merged if existing.text == key), None
+        )
         if duplicate:
             duplicate.confidence = max(duplicate.confidence, span.confidence)
         else:
@@ -132,7 +145,9 @@ def _merge_spans(spans: Iterable[OCRSpan]) -> list[OCRSpan]:
     return merged
 
 
-def _score_candidate(spans: list[OCRSpan], orientation: PreprocessedOrientation) -> tuple[float, dict[str, float]]:
+def _score_candidate(
+    spans: list[OCRSpan], orientation: PreprocessedOrientation
+) -> tuple[float, dict[str, float]]:
     if not spans:
         return (orientation.metadata.get("score", 0.0) * 0.2, {"base": 0.0})
     confidences = [span.confidence for span in spans if span.confidence > 0]
@@ -146,13 +161,15 @@ def recognize_text(
     source: str | np.ndarray | bytes,
     *,
     enhance: bool = False,
-    rotations: Optional[Iterable[int]] = None,
+    rotations: Iterable[int] | None = None,
 ) -> RecognitionResult:
-    preprocess = preprocess_image(source, enhance=enhance, rotations=rotations or (0, 90, 180, 270))
+    preprocess = preprocess_image(
+        source, enhance=enhance, rotations=rotations or (0, 90, 180, 270)
+    )
     candidates: list[RecognitionCandidate] = []
     for orientation in preprocess.orientations:
         image = orientation.processed
-        spans: List[OCRSpan] = []
+        spans: list[OCRSpan] = []
 
         paddle_spans = _recognize_paddle(image)
         if paddle_spans:
@@ -185,4 +202,3 @@ __all__ = [
     "RecognitionResult",
     "OCRSpan",
 ]
-

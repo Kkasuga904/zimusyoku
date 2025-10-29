@@ -1,4 +1,12 @@
-export type JobStatus = "queued" | "running" | "ok" | "failed";
+export type JobStatus =
+  | "queued"
+  | "running"
+  | "pending"
+  | "pending_approval"
+  | "approved"
+  | "rejected"
+  | "ok"
+  | "failed";
 
 export type Job = {
   id: string;

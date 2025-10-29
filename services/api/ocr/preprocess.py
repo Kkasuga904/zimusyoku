@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import io
-import math
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import cv2
 import numpy as np
@@ -48,7 +48,10 @@ class PreprocessResult:
             raise ValueError("no orientations preprocessed")
         return max(
             self.orientations,
-            key=lambda item: (item.metadata.get("score", 0.0), -abs(item.angle_correction)),
+            key=lambda item: (
+                item.metadata.get("score", 0.0),
+                -abs(item.angle_correction),
+            ),
         )
 
 
@@ -56,12 +59,12 @@ def _load_source(source: str | Path | np.ndarray | bytes) -> np.ndarray:
     if isinstance(source, np.ndarray):
         image = source
     else:
-        if isinstance(source, (str, Path)):
+        if isinstance(source, str | Path):
             path = Path(source)
             if not path.exists():
                 raise FileNotFoundError(path)
             pil = Image.open(path)
-        elif isinstance(source, (bytes, bytearray)):
+        elif isinstance(source, (bytes | bytearray)):
             pil = Image.open(io.BytesIO(source))
         else:
             raise TypeError(f"Unsupported source type: {type(source)!r}")
@@ -92,17 +95,32 @@ def _deskew(gray: np.ndarray) -> tuple[np.ndarray, float]:
         angle = 90 + angle
     center = (gray.shape[1] / 2, gray.shape[0] / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-    rotated = cv2.warpAffine(gray, matrix, (gray.shape[1], gray.shape[0]), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    rotated = cv2.warpAffine(
+        gray,
+        matrix,
+        (gray.shape[1], gray.shape[0]),
+        flags=cv2.INTER_CUBIC,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
     return rotated, angle
 
 
 def _auto_contrast(image: np.ndarray) -> np.ndarray:
     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
+    lightness_channel, channel_a, channel_b = cv2.split(lab)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    l = clahe.apply(l)
-    merged = cv2.merge((l, a, b))
+    lightness_channel = clahe.apply(lightness_channel)
+    merged = cv2.merge((lightness_channel, channel_a, channel_b))
     return cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+
+
+def _gamma_correction(image: np.ndarray, gamma: float = 1.1) -> np.ndarray:
+    gamma = max(gamma, 0.1)
+    inv_gamma = 1.0 / gamma
+    table = np.array(
+        [(i / 255.0) ** inv_gamma * 255 for i in np.arange(0, 256)]
+    ).astype("uint8")
+    return cv2.LUT(image, table)
 
 
 def _enhance_low_resolution(image: np.ndarray) -> np.ndarray:
@@ -125,11 +143,20 @@ def _adaptive_threshold(gray: np.ndarray) -> np.ndarray:
 
     if ximgproc is not None:
         try:
-            return ximgproc.niBlackThreshold(gray, 255, cv2.THRESH_BINARY, 41, -0.2, binarizationMethod=ximgproc.BINARIZATION_SAUVOLA)
+            return ximgproc.niBlackThreshold(
+                gray,
+                255,
+                cv2.THRESH_BINARY,
+                41,
+                -0.2,
+                binarizationMethod=ximgproc.BINARIZATION_SAUVOLA,
+            )
         except Exception:  # pragma: no cover - safety fallback
             pass
 
-    adaptive = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 35, 15)
+    adaptive = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 35, 15
+    )
     _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return cv2.bitwise_or(adaptive, otsu)
 
@@ -155,7 +182,9 @@ def _trim_whitespace(image: np.ndarray) -> np.ndarray:
 
 
 def _estimate_digit_candidates(binary: np.ndarray) -> tuple[int, float]:
-    contours, _ = cv2.findContours(255 - binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        255 - binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
     digit_like = 0
     total_area = 0
     for contour in contours:
@@ -181,12 +210,15 @@ def preprocess_image(
     if enhance:
         original = _enhance_low_resolution(original)
         original = _auto_contrast(original)
+        original = _gamma_correction(original, gamma=1.1)
 
     orientations: list[PreprocessedOrientation] = []
     for rotation in rotations:
         rotated = _rotate(original, rotation)
         gray = cv2.cvtColor(rotated, cv2.COLOR_BGR2GRAY)
-        denoised = cv2.fastNlMeansDenoising(gray, h=15, templateWindowSize=7, searchWindowSize=21)
+        denoised = cv2.fastNlMeansDenoising(
+            gray, h=15, templateWindowSize=7, searchWindowSize=21
+        )
         binary = _adaptive_threshold(denoised)
         morphed = _morphology(binary)
         trimmed = _trim_whitespace(morphed)

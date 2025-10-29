@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from .jobs import Job
-from .models import JobModel, OCRFields, OCRResultModel
+from .models import ApprovalEventModel, JobModel, OCRFields, OCRResultModel
 
 
 def _to_datetime(value) -> datetime:
@@ -24,11 +24,15 @@ def job_to_model(job: Job) -> JobModel:
             fields=OCRFields(**(job.ocr_fields or {})),
         )
 
+    approval_history = [
+        ApprovalEventModel(**event) for event in job.approval_history or []
+    ]
+
     return JobModel(
         id=job.id,
         fileName=job.file_name,
         documentType=job.document_type,
-        status=job.status.title(),
+        status=job.status,
         classification=job.classification,
         submittedAt=_to_datetime(job.submitted_at),
         updatedAt=_to_datetime(job.updated_at),
@@ -36,4 +40,6 @@ def job_to_model(job: Job) -> JobModel:
         ocr=ocr_model,
         journalEntry=job.journal_entry,
         metadata=job.metadata or {},
+        approvalStatus=job.approval_status,
+        approvalHistory=approval_history,
     )

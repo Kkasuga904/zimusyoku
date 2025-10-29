@@ -45,7 +45,7 @@ describe("Upload page", () => {
     fireEvent.click(screen.getByRole("button", { name: strings.upload.submitButton }));
 
     await waitFor(() =>
-      expect(registerJobMock).toHaveBeenCalledWith(file, "invoice"),
+      expect(registerJobMock).toHaveBeenCalledWith(file, "invoice", { enhance: false }),
     );
     expect(
       await screen.findByText(strings.upload.success("JOB-2001")),
@@ -82,7 +82,7 @@ describe("Upload page", () => {
     fireEvent.click(screen.getByRole("button", { name: strings.upload.submitButton }));
 
     await waitFor(() =>
-      expect(registerJobMock).toHaveBeenCalledWith(file, "receipt"),
+      expect(registerJobMock).toHaveBeenCalledWith(file, "receipt", { enhance: false }),
     );
   });
 
@@ -119,10 +119,10 @@ describe("Upload page", () => {
     fireEvent.click(screen.getByRole("button", { name: strings.upload.submitButton }));
 
     await waitFor(() =>
-      expect(registerJobMock).toHaveBeenNthCalledWith(1, firstFile, "invoice"),
+      expect(registerJobMock).toHaveBeenNthCalledWith(1, firstFile, "invoice", { enhance: false }),
     );
     await waitFor(() =>
-      expect(registerJobMock).toHaveBeenNthCalledWith(2, secondFile, "invoice"),
+      expect(registerJobMock).toHaveBeenNthCalledWith(2, secondFile, "invoice", { enhance: false }),
     );
 
     expect(

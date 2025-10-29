@@ -29,6 +29,9 @@ class Settings:
     ocr_dir: Path
     journal_path: Path
     jobs_path: Path
+    approvals_path: Path
+    integrations_dir: Path
+    payments_log_path: Path
     celery_broker_url: str
     celery_result_backend: str
     celery_task_always_eager: bool
@@ -47,6 +50,9 @@ class Settings:
         self.ocr_dir.mkdir(parents=True, exist_ok=True)
         self.journal_path.parent.mkdir(parents=True, exist_ok=True)
         self.jobs_path.parent.mkdir(parents=True, exist_ok=True)
+        self.approvals_path.parent.mkdir(parents=True, exist_ok=True)
+        self.integrations_dir.mkdir(parents=True, exist_ok=True)
+        self.payments_log_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 @lru_cache(maxsize=1)
@@ -69,9 +75,7 @@ def get_settings() -> Settings:
     raw_origins = os.environ.get("API_CORS_ORIGINS")
     if raw_origins:
         cors_origins = tuple(
-            origin.strip()
-            for origin in raw_origins.split(",")
-            if origin.strip()
+            origin.strip() for origin in raw_origins.split(",") if origin.strip()
         )
     else:
         cors_origins = (
@@ -90,6 +94,9 @@ def get_settings() -> Settings:
         ocr_dir=(data_root / "ocr"),
         journal_path=(data_root / "journal.json"),
         jobs_path=(data_root / "jobs.json"),
+        approvals_path=(data_root / "approvals.json"),
+        integrations_dir=(data_root / "integrations"),
+        payments_log_path=(data_root / "payments.json"),
         celery_broker_url=broker,
         celery_result_backend=backend,
         celery_task_always_eager=task_always_eager,
@@ -97,7 +104,9 @@ def get_settings() -> Settings:
         jwt_algorithm=os.environ.get("API_JWT_ALGORITHM", "HS256"),
         access_token_minutes=int(os.environ.get("API_JWT_EXPIRES_MINUTES", "60")),
         auth_enabled=_as_bool(os.environ.get("API_AUTH_ENABLED"), default=True),
-        default_user_email=os.environ.get("API_DEFAULT_USER_EMAIL", "admin@example.com"),
+        default_user_email=os.environ.get(
+            "API_DEFAULT_USER_EMAIL", "admin@example.com"
+        ),
         default_user_password=os.environ.get("API_DEFAULT_USER_PASSWORD", "adminpass"),
         cors_origins=cors_origins,
         cors_origin_regex=cors_origin_regex,

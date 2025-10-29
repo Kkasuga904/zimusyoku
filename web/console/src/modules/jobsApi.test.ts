@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setAuthToken } from "./apiClient";
-import { exportJobsCsv, fetchJobById, fetchJobs, registerJob } from "./jobsApi";
+import {
+  exportInvoicesPdf,
+  exportJobsCsv,
+  exportJournalCsv,
+  fetchJobById,
+  fetchJobs,
+  registerJob,
+} from "./jobsApi";
 
 const mockFetch = vi.fn();
 
@@ -97,7 +104,12 @@ describe("jobsApi", () => {
 
   it("downloads CSV via exportJobsCsv", async () => {
     const blob = new Blob(["id,file"]);
-    mockFetch.mockResolvedValueOnce(new Response(blob, { status: 200 }));
+    mockFetch.mockResolvedValueOnce(
+      new Response(blob, {
+        status: 200,
+        headers: { "Content-Type": "text/csv" },
+      }),
+    );
 
     const result = await exportJobsCsv();
     const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
@@ -106,5 +118,41 @@ describe("jobsApi", () => {
     expect(headers.get("Authorization")).toBe("Bearer test-token");
     expect(result.size).toBeGreaterThan(0);
     expect(typeof result.type).toBe("string");
+  });
+
+  it("downloads invoice PDF via exportInvoicesPdf", async () => {
+    const blob = new Blob(["pdf-content"], { type: "application/pdf" });
+    mockFetch.mockResolvedValueOnce(
+      new Response(blob, {
+        status: 200,
+        headers: { "Content-Type": "application/pdf" },
+      }),
+    );
+
+    const result = await exportInvoicesPdf();
+    const [url] = mockFetch.mock.calls[mockFetch.mock.calls.length - 1] as [
+      string,
+      RequestInit | undefined,
+    ];
+    expect(url).toContain("/api/export/invoices");
+    expect(result.type).toBe("application/pdf");
+  });
+
+  it("downloads journal CSV via exportJournalCsv", async () => {
+    const blob = new Blob(["id,debit,credit"], { type: "text/csv" });
+    mockFetch.mockResolvedValueOnce(
+      new Response(blob, {
+        status: 200,
+        headers: { "Content-Type": "text/csv" },
+      }),
+    );
+
+    const result = await exportJournalCsv();
+    const [url] = mockFetch.mock.calls[mockFetch.mock.calls.length - 1] as [
+      string,
+      RequestInit | undefined,
+    ];
+    expect(url).toContain("/api/export/journal");
+    expect(result.size).toBeGreaterThan(0);
   });
 });

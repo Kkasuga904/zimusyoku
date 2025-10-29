@@ -14,7 +14,12 @@ from services.ocr.worker import process_document
 from .config import get_settings
 from .dependencies import get_current_user_token, get_job_store
 from .jobs import JobStore
-from .models import AmountCandidateModel, AmountExtractionResponse, AmountFieldsModel, UploadResponse
+from .models import (
+    AmountCandidateModel,
+    AmountExtractionResponse,
+    AmountFieldsModel,
+    UploadResponse,
+)
 from .ocr.amounts import extract_amounts
 from .ocr.recognize import RecognitionResult, recognize_text
 from .utils import job_to_model
@@ -30,20 +35,26 @@ AuthDep = Annotated[str, Depends(get_current_user_token)]
 UploadDep = Annotated[UploadFile, File(...)]
 
 
-def _store_debug_crop(result: RecognitionResult, amounts: dict[str, object], filename: str) -> list[str]:
+def _store_debug_crop(
+    result: RecognitionResult, amounts: dict[str, object], filename: str
+) -> list[str]:
     settings = get_settings()
     debug_dir = settings.ocr_dir / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
     saved: list[str] = []
-    keyword_regions = (amounts.get("debug") or {}).get("keyword_regions") if isinstance(amounts, dict) else None
+    keyword_regions = (
+        (amounts.get("debug") or {}).get("keyword_regions")
+        if isinstance(amounts, dict)
+        else None
+    )
     if not keyword_regions:
         return saved
     orientation = result.candidate.orientation
     image = orientation.processed
     for index, region in enumerate(keyword_regions[:3]):
         bbox = region.get("bbox") or []
-        xs = [pt[0] for pt in bbox if isinstance(pt, (list, tuple)) and len(pt) == 2]
-        ys = [pt[1] for pt in bbox if isinstance(pt, (list, tuple)) and len(pt) == 2]
+        xs = [pt[0] for pt in bbox if isinstance(pt, list | tuple) and len(pt) == 2]
+        ys = [pt[1] for pt in bbox if isinstance(pt, list | tuple) and len(pt) == 2]
         if not xs or not ys:
             continue
         x0 = max(min(xs) - 20, 0)
@@ -59,7 +70,9 @@ def _store_debug_crop(result: RecognitionResult, amounts: dict[str, object], fil
     return saved
 
 
-def _build_amount_response(result: RecognitionResult, amounts: dict[str, object]) -> AmountExtractionResponse:
+def _build_amount_response(
+    result: RecognitionResult, amounts: dict[str, object]
+) -> AmountExtractionResponse:
     fields = AmountFieldsModel(
         currency=amounts.get("currency", "JPY"),
         subtotal=amounts.get("subtotal"),
@@ -92,11 +105,15 @@ def _build_amount_response(result: RecognitionResult, amounts: dict[str, object]
 @router.post("/parse", response_model=AmountExtractionResponse)
 async def parse_document(
     document: UploadDep,
-    enhance: bool = Query(default=False, description="Apply aggressive enhancement heuristics"),
+    enhance: bool = Query(
+        default=False, description="Apply aggressive enhancement heuristics"
+    ),
 ) -> AmountExtractionResponse:
     content = await document.read()
     if not content:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty payload")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Empty payload"
+        )
 
     try:
         recognition = recognize_text(content, enhance=enhance)
@@ -115,7 +132,9 @@ async def parse_document(
     return _build_amount_response(recognition, amounts)
 
 
-@router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED
+)
 async def upload_document(
     document: UploadDep,
     job_store: JobStoreDep,

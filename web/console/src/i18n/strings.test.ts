@@ -6,9 +6,8 @@ describe("useStrings", () => {
     const { result } = renderHook(() => useStrings());
 
     expect(result.current.nav.help).toBe(ja.nav.help);
-    expect(result.current.jobs.statusLabels.Queued).toBe(
-      ja.jobs.statusLabels.Queued,
+    expect(result.current.jobs.statusLabels.running).toBe(
+      ja.jobs.statusLabels.running,
     );
   });
 });
-

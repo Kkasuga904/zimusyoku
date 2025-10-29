@@ -17,7 +17,15 @@ export default defineConfig({
         "src/modules/authClient.ts",
         "src/modules/summaryApi.ts",
         "src/modules/apiClient.ts",
-        "src/pages/Home.tsx"
+        "src/modules/approvalsApi.ts",
+        "src/modules/syncApi.ts",
+        "src/modules/paymentsApi.ts",
+        "src/pages/Home.tsx",
+        "src/pages/Approvals.tsx",
+        "src/pages/Jobs.tsx",
+        "src/pages/JobDetail.tsx",
+        "src/pages/Upload.tsx",
+        "src/pages/Summary.tsx"
       ],
       thresholds: {
         lines: 85,

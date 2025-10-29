@@ -5,16 +5,28 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence
 
 from .recognize import OCRSpan
 
-TOTAL_KEYWORDS = ["合計", "総合計", "請求金額", "お支払金額", "お支払い金額", "合計金額", "税込", "請求額"]
+TOTAL_KEYWORDS = [
+    "合計",
+    "総合計",
+    "請求金額",
+    "お支払金額",
+    "お支払い金額",
+    "合計金額",
+    "税込",
+    "請求額",
+]
 SUBTOTAL_KEYWORDS = ["小計", "税抜", "税別", "小計金額"]
 TAX_KEYWORDS = ["税", "消費税", "内税", "外税", "税額", "消費税額"]
 CURRENCY_KEYWORDS = ["円", "¥", "￥", "JPY"]
 NUMBER_PATTERN = re.compile(r"(?<!\d)(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?")
+FALLBACK_NUMBER_PATTERN = re.compile(
+    r"(?:¥|￥)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?"
+)
 
 
 @dataclass(slots=True)
@@ -104,12 +116,92 @@ def _parse_number(match: re.Match[str]) -> int:
     return value
 
 
-def _find_keyword_score(token: Token, neighbours: Iterable[Token], keywords: list[str]) -> float:
+def _parse_components(integer: str, decimal: str | None) -> int:
+    value = int(integer.replace(",", ""))
+    if decimal:
+        value = int(round(value + float(f"0.{decimal}")))
+    return value
+
+
+def extract_amounts_from_text(text: str) -> dict[str, object]:
+    totals: list[int] = []
+    subtotals: list[int] = []
+    taxes: list[int] = []
+    trailing_candidates: list[int] = []
+    pending_label: str | None = None
+
+    for raw_line in text.splitlines():
+        normalized = unicodedata.normalize("NFKC", raw_line).strip()
+        normalized = normalized.replace("，", ",").replace("．", ".")
+        if not normalized:
+            continue
+        if "-" in normalized or "ー" in normalized:
+            if not any(
+                keyword in normalized
+                for keyword in (TOTAL_KEYWORDS + SUBTOTAL_KEYWORDS + TAX_KEYWORDS)
+            ):
+                continue
+
+        label: str | None = None
+        if any(keyword in normalized for keyword in TOTAL_KEYWORDS):
+            label = "total"
+        elif any(keyword in normalized for keyword in SUBTOTAL_KEYWORDS):
+            label = "subtotal"
+        elif any(keyword in normalized for keyword in TAX_KEYWORDS):
+            label = "tax"
+
+        matches = FALLBACK_NUMBER_PATTERN.findall(normalized)
+        if matches:
+            values = [
+                _parse_components(integer, decimal) for integer, decimal in matches
+            ]
+            target = label or pending_label
+            if target == "total":
+                totals.extend(values)
+            elif target == "subtotal":
+                subtotals.extend(values)
+            elif target == "tax":
+                taxes.extend(values)
+            else:
+                trailing_candidates.extend(values)
+            pending_label = None
+        else:
+            pending_label = label or pending_label
+
+    total = totals[-1] if totals else None
+    subtotal = subtotals[-1] if subtotals else None
+    tax = taxes[-1] if taxes else None
+    if total is None:
+        if subtotal is not None and tax is not None:
+            total = subtotal + tax
+        elif subtotal is None and tax is None:
+            for value in reversed(trailing_candidates):
+                if value >= 100:
+                    total = value
+                    break
+
+    return {
+        "currency": "JPY",
+        "subtotal": subtotal,
+        "tax": tax,
+        "total": total,
+        "candidates": [],
+        "vendor": None,
+        "invoice_date": None,
+        "debug": {"source": "text-fallback"},
+    }
+
+
+def _find_keyword_score(
+    token: Token, neighbours: Iterable[Token], keywords: list[str]
+) -> float:
     score = 0.0
     for keyword in keywords:
         if keyword in token.normalized:
             score += 1.5
-    sorted_neighbours = sorted(neighbours, key=lambda other: math.hypot(token.x - other.x, token.y - other.y))
+    sorted_neighbours = sorted(
+        neighbours, key=lambda other: math.hypot(token.x - other.x, token.y - other.y)
+    )
     for idx, neighbour in enumerate(sorted_neighbours[:5]):
         for keyword in keywords:
             if keyword in neighbour.normalized:
@@ -118,17 +210,23 @@ def _find_keyword_score(token: Token, neighbours: Iterable[Token], keywords: lis
     return score
 
 
-def _candidate_from_token(token: Token, label: str, neighbours: Iterable[Token]) -> list[AmountCandidate]:
+def _candidate_from_token(
+    token: Token, label: str, neighbours: Iterable[Token]
+) -> list[AmountCandidate]:
     candidates: list[AmountCandidate] = []
     for match in NUMBER_PATTERN.finditer(token.normalized):
         value = _parse_number(match)
         score = 1.0
         has_keyword = False
-        keyword_score = _find_keyword_score(token, neighbours, {
-            "total": TOTAL_KEYWORDS,
-            "subtotal": SUBTOTAL_KEYWORDS,
-            "tax": TAX_KEYWORDS,
-        }[label])
+        keyword_score = _find_keyword_score(
+            token,
+            neighbours,
+            {
+                "total": TOTAL_KEYWORDS,
+                "subtotal": SUBTOTAL_KEYWORDS,
+                "tax": TAX_KEYWORDS,
+            }[label],
+        )
         if keyword_score > 0:
             has_keyword = True
             score += 3.0 + keyword_score
@@ -172,11 +270,13 @@ def _score_candidates(tokens: list[Token]) -> dict[str, list[AmountCandidate]]:
     }
 
 
-def _select_best(candidates: list[AmountCandidate]) -> Optional[AmountCandidate]:
+def _select_best(candidates: list[AmountCandidate]) -> AmountCandidate | None:
     return candidates[0] if candidates else None
 
 
-def _consistency_check(subtotal: Optional[int], tax: Optional[int], total: Optional[int]) -> bool:
+def _consistency_check(
+    subtotal: int | None, tax: int | None, total: int | None
+) -> bool:
     if subtotal is None or tax is None or total is None:
         return True
     return abs((subtotal + tax) - total) <= 1
@@ -253,4 +353,5 @@ def extract_amounts(spans: Sequence[OCRSpan]) -> dict[str, object]:
 
 __all__ = [
     "extract_amounts",
+    "extract_amounts_from_text",
 ]

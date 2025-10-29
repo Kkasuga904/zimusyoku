@@ -9,7 +9,12 @@ import {
   Tooltip,
 } from "chart.js";
 import { Bar, Doughnut } from "react-chartjs-2";
-import { fetchSummary, type SummaryResponse } from "../modules/summaryApi";
+import {
+  fetchSummary,
+  type SummaryAccountTotal,
+  type SummaryMonthlyTotal,
+  type SummaryResponse,
+} from "../modules/summaryApi";
 import { NetworkError } from "../modules/apiClient";
 import { useStrings } from "../i18n/strings";
 
@@ -41,15 +46,16 @@ const Summary = () => {
   }, []);
 
   const pieData = useMemo(() => {
-    if (!summary || summary.breakdown.length === 0) {
+    const breakdown = summary?.breakdown ?? [];
+    if (!summary || breakdown.length === 0) {
       return null;
     }
     return {
-      labels: summary.breakdown.map((item) => item.label),
+      labels: breakdown.map((item) => item.label),
       datasets: [
         {
           label: strings.summary.breakdownLabel,
-          data: summary.breakdown.map((item) => item.amount),
+          data: breakdown.map((item) => item.amount),
           backgroundColor: [
             "#4169e1",
             "#2ecc71",
@@ -64,21 +70,42 @@ const Summary = () => {
   }, [summary, strings.summary.breakdownLabel]);
 
   const barData = useMemo(() => {
-    if (!summary || summary.breakdown.length === 0) {
+    const breakdown = summary?.breakdown ?? [];
+    if (!summary || breakdown.length === 0) {
       return null;
     }
 
     return {
-      labels: summary.breakdown.map((item) => item.label),
+      labels: breakdown.map((item) => item.label),
       datasets: [
         {
           label: strings.summary.breakdownLabel,
-          data: summary.breakdown.map((item) => item.amount),
+          data: breakdown.map((item) => item.amount),
           backgroundColor: "#4169e1",
         },
       ],
     };
   }, [summary, strings.summary.breakdownLabel]);
+
+  const monthlyData = useMemo(() => {
+    const totals = summary?.monthly_totals ?? [];
+    if (!summary || totals.length === 0) {
+      return null;
+    }
+    return {
+      labels: totals.map((item: SummaryMonthlyTotal) => item.month),
+      datasets: [
+        {
+          label: strings.summary.monthlyTitle,
+          data: totals.map((item) => item.total),
+          backgroundColor: "#2ecc71",
+        },
+      ],
+    };
+  }, [summary, strings.summary.monthlyTitle]);
+
+  const topAccounts: SummaryAccountTotal[] = summary?.top_accounts ?? [];
+  const approvalRate = summary?.approval_rate ?? 0;
 
   return (
     <section className="panel summary-panel">
@@ -113,6 +140,10 @@ const Summary = () => {
               <span className="metric-label">{strings.summary.month}</span>
               <span className="metric-value">{summary.month}</span>
             </div>
+            <div className="metric-card">
+              <span className="metric-label">{strings.summary.approvalRate}</span>
+              <span className="metric-value">{(approvalRate * 100).toFixed(1)}%</span>
+            </div>
           </div>
 
           {pieData ? (
@@ -138,6 +169,40 @@ const Summary = () => {
                       }}
                     />
                   </div>
+                )}
+              </div>
+              <div className="chart-card">
+                <h3>{strings.summary.monthlyTitle}</h3>
+                {monthlyData ? (
+                  <div className="chart-frame">
+                    <Bar
+                      data={monthlyData}
+                      options={{
+                        plugins: {
+                          legend: { display: false },
+                        },
+                        responsive: true,
+                        maintainAspectRatio: false,
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="chart-placeholder">{strings.summary.monthlyEmpty}</p>
+                )}
+              </div>
+              <div className="chart-card">
+                <h3>{strings.summary.topAccountsTitle}</h3>
+                {topAccounts.length > 0 ? (
+                  <ul className="top-accounts-list">
+                    {topAccounts.map((item) => (
+                      <li key={item.account}>
+                        <span>{item.account}</span>
+                        <span>¥{item.amount.toLocaleString("ja-JP")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="chart-placeholder">{strings.summary.noData}</p>
                 )}
               </div>
             </div>

@@ -12,11 +12,17 @@ from services.accounting.classify import classify_document
 
 def _reset_service_modules() -> None:
     for module_name in list(sys.modules):
-        if module_name.startswith("services.api") or module_name.startswith("services.ocr") or module_name.startswith("services.accounting"):
+        if (
+            module_name.startswith("services.api")
+            or module_name.startswith("services.ocr")
+            or module_name.startswith("services.accounting")
+        ):
             sys.modules.pop(module_name)
 
 
-def _create_sample_image(path: Path, *, vendor: str, amount: int, tax: int, category: str) -> None:
+def _create_sample_image(
+    path: Path, *, vendor: str, amount: int, tax: int, category: str
+) -> None:
     payload = "\n".join(
         [
             f"Vendor: {vendor}",
@@ -33,7 +39,9 @@ def _create_sample_image(path: Path, *, vendor: str, amount: int, tax: int, cate
     image.save(path, "PNG", pnginfo=info)
 
 
-def _create_drawn_image(path: Path, *, vendor: str, amount: int, tax: int, category: str) -> None:
+def _create_drawn_image(
+    path: Path, *, vendor: str, amount: int, tax: int, category: str
+) -> None:
     from PIL import Image, ImageDraw
 
     image = Image.new("RGB", (480, 240), color="white")
@@ -128,16 +136,68 @@ def test_full_pipeline_flow(api_client: TestClient, tmp_path: Path) -> None:
     assert jobs_payload
     job_entry = jobs_payload[0]
     assert job_entry["classification"]
+    assert job_entry["status"] == "pending_approval"
+    assert job_entry["approvalStatus"] == "pending"
+
+    approval_response = api_client.post(
+        f"/api/approvals/{job_id}/approve",
+        headers=headers,
+        json={},
+    )
+    assert approval_response.status_code == 200
+    approval_payload = approval_response.json()
+    assert approval_payload["status"] == "approved"
+
+    refreshed = api_client.get(f"/api/jobs/{job_id}", headers=headers)
+    assert refreshed.status_code == 200
+    job_detail = refreshed.json()
+    assert job_detail["status"] == "approved"
+    assert job_detail["approvalStatus"] == "approved"
 
     csv_response = api_client.get("/api/jobs/export.csv", headers=headers)
     assert csv_response.status_code == 200
     assert job_id in csv_response.text
+
+    invoices_response = api_client.get("/api/export/invoices", headers=headers)
+    assert invoices_response.status_code == 200
+    assert invoices_response.headers["content-type"].startswith("application/pdf")
+
+    journal_response = api_client.get("/api/export/journal", headers=headers)
+    assert journal_response.status_code == 200
+    assert job_id in journal_response.text
+
+    sync_response = api_client.post(
+        "/api/sync/freee",
+        headers=headers,
+        json={"jobIds": [job_id]},
+    )
+    assert sync_response.status_code == 200
+    sync_payload = sync_response.json()
+    assert job_id in sync_payload["processed"]
+
+    payment_response = api_client.post(
+        "/api/payments/execute",
+        headers=headers,
+        json={"jobIds": [job_id]},
+    )
+    assert payment_response.status_code == 200
+    payment_payload = payment_response.json()
+    assert job_id in payment_payload["processed"]
+
+    approvals_list = api_client.get("/api/approvals", headers=headers)
+    assert approvals_list.status_code == 200
+    approvals_payload = approvals_list.json()["approvals"]
+    assert approvals_payload
+    assert approvals_payload[0]["status"] == "approved"
 
     summary_response = api_client.get("/api/summary", headers=headers)
     assert summary_response.status_code == 200
     summary = summary_response.json()
     assert summary["journal_count"] == 1
     assert summary["total_spend"] >= 12345
+    assert summary["approval_rate"] == pytest.approx(1.0)
+    assert summary["monthly_totals"]
+    assert summary["top_accounts"]
 
 
 def test_classification_rules() -> None:
@@ -148,6 +208,11 @@ def test_classification_rules() -> None:
     assert result["category"] in {"交通費", "旅費交通費"}
     assert result["amount_gross"] == 1200
     assert result["tax"] == 120
+    assert result["debit_account"]
+    assert result["credit_account"]
+    assert result["journal_lines"]
+    last_line = result["journal_lines"][-1]
+    assert last_line["credit"] == pytest.approx(1200)
 
 
 def test_pipeline_uses_rapidocr_when_metadata_missing(
@@ -183,7 +248,9 @@ def test_pipeline_uses_rapidocr_when_metadata_missing(
     assert jobs_response.status_code == 200
     jobs_payload = jobs_response.json()["jobs"]
     assert jobs_payload
-    job_entry = next((item for item in jobs_payload if item["fileName"] == "drawn.png"), None)
+    job_entry = next(
+        (item for item in jobs_payload if item["fileName"] == "drawn.png"), None
+    )
     assert job_entry is not None
     journal = job_entry["journalEntry"]
     assert journal is not None

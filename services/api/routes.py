@@ -53,7 +53,9 @@ def create_router(repo: Repo) -> APIRouter:
         try:
             return repo.get_detail(job_id)
         except KeyError as exc:  # pragma: no cover - defensive guard
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+            ) from exc
 
     @router.post("/uploads", response_model=UploadResult)
     def upload(file: UploadFile = File(...)) -> UploadResult:  # noqa: B008

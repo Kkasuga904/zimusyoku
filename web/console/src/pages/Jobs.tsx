@@ -1,6 +1,15 @@
-﻿import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { exportJobsCsv, fetchJobs, type JobSummary } from "../modules/jobsApi";
+import {
+  exportInvoicesPdf,
+  exportJobsCsv,
+  exportJournalCsv,
+  fetchJobs,
+  type JobSummary,
+} from "../modules/jobsApi";
+import { syncFreee, syncYayoi } from "../modules/syncApi";
+import { executePayments } from "../modules/paymentsApi";
+import { ApiError, NetworkError } from "../modules/apiClient";
 import { useStrings } from "../i18n/strings";
 
 type LoadState = "loading" | "success" | "empty" | "error";
@@ -39,6 +48,16 @@ const Jobs = () => {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [isExportingInvoices, setIsExportingInvoices] = useState(false);
+  const [isExportingJournal, setIsExportingJournal] = useState(false);
+  const [exportInvoicesError, setExportInvoicesError] = useState<string | null>(null);
+  const [exportJournalError, setExportJournalError] = useState<string | null>(null);
+  const [syncingTarget, setSyncingTarget] = useState<"freee" | "yayoi" | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsMessage, setPaymentsMessage] = useState<string | null>(null);
+  const [paymentsError, setPaymentsError] = useState<string | null>(null);
 
   const refreshJobs = useCallback(
     async (withSpinner: boolean) => {
@@ -85,23 +104,95 @@ const Jobs = () => {
     return () => window.clearInterval(interval);
   }, [refreshJobs]);
 
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
   const handleExport = async () => {
     setExportError(null);
     setIsExporting(true);
     try {
       const blob = await exportJobsCsv();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "jobs.csv";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      triggerDownload(blob, "jobs.csv");
     } catch (_error) {
       setExportError(strings.jobs.exportError);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleExportInvoices = async () => {
+    setExportInvoicesError(null);
+    setIsExportingInvoices(true);
+    try {
+      const blob = await exportInvoicesPdf();
+      triggerDownload(blob, "invoices.pdf");
+    } catch (_error) {
+      setExportInvoicesError(strings.jobs.exportInvoicesError);
+    } finally {
+      setIsExportingInvoices(false);
+    }
+  };
+
+  const handleExportJournal = async () => {
+    setExportJournalError(null);
+    setIsExportingJournal(true);
+    try {
+      const blob = await exportJournalCsv();
+      triggerDownload(blob, "journal.csv");
+    } catch (_error) {
+      setExportJournalError(strings.jobs.exportJournalError);
+    } finally {
+      setIsExportingJournal(false);
+    }
+  };
+
+  const approvedJobs = useMemo(() => jobs.filter((job) => job.approvalStatus === "approved"), [jobs]);
+
+  const handleSync = async (target: "freee" | "yayoi") => {
+    setSyncError(null);
+    setSyncMessage(null);
+    setSyncingTarget(target);
+    try {
+      const jobIds = approvedJobs.map((job) => job.id);
+      const response = target === "freee" ? await syncFreee(jobIds) : await syncYayoi(jobIds);
+      setSyncMessage(strings.jobs.syncSuccess.replace("{count}", String(response.processed.length)));
+    } catch (error) {
+      if (error instanceof NetworkError) {
+        setSyncError(strings.summary.offline);
+      } else {
+        setSyncError(strings.jobs.syncError);
+      }
+    } finally {
+      setSyncingTarget(null);
+    }
+  };
+
+  const handleExecutePayments = async () => {
+    setPaymentsError(null);
+    setPaymentsMessage(null);
+    setPaymentsLoading(true);
+    try {
+      const jobIds = approvedJobs.map((job) => job.id);
+      const response = await executePayments(jobIds);
+      setPaymentsMessage(strings.jobs.executePaymentsSuccess.replace("{batch}", response.batch_id));
+    } catch (error) {
+      if (error instanceof NetworkError) {
+        setPaymentsError(strings.summary.offline);
+      } else if (error instanceof ApiError) {
+        setPaymentsError(strings.jobs.executePaymentsError);
+      } else {
+        setPaymentsError(strings.jobs.executePaymentsError);
+      }
+    } finally {
+      setPaymentsLoading(false);
     }
   };
 
@@ -115,15 +206,68 @@ const Jobs = () => {
       </header>
       <p>{strings.jobs.description}</p>
       <div className="jobs-toolbar">
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={handleExport}
-          disabled={isExporting || jobs.length === 0}
-        >
-          {isExporting ? strings.jobs.exporting : strings.jobs.exportCsv}
-        </button>
+        <div className="button-group">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleExport}
+            disabled={isExporting || jobs.length === 0}
+          >
+            {isExporting ? strings.jobs.exporting : strings.jobs.exportCsv}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleExportInvoices}
+            disabled={isExportingInvoices || jobs.length === 0}
+          >
+            {isExportingInvoices ? strings.jobs.exporting : strings.jobs.exportInvoices}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleExportJournal}
+            disabled={isExportingJournal || jobs.length === 0}
+          >
+            {isExportingJournal ? strings.jobs.exporting : strings.jobs.exportJournal}
+          </button>
+        </div>
+        <div className="button-group">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => handleSync("freee")}
+            disabled={approvedJobs.length === 0 || syncingTarget !== null}
+          >
+            {syncingTarget === "freee" ? strings.jobs.syncing : `${strings.jobs.syncLabel} (${strings.jobs.syncTargets.freee})`}
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => handleSync("yayoi")}
+            disabled={approvedJobs.length === 0 || syncingTarget !== null}
+          >
+            {syncingTarget === "yayoi" ? strings.jobs.syncing : `${strings.jobs.syncLabel} (${strings.jobs.syncTargets.yayoi})`}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleExecutePayments}
+            disabled={approvedJobs.length === 0 || paymentsLoading}
+          >
+            {paymentsLoading ? strings.jobs.executingPayments : strings.jobs.executePayments}
+          </button>
+        </div>
+      </div>
+
+      <div className="jobs-feedback">
         {exportError && <span className="error-text">{exportError}</span>}
+        {exportInvoicesError && <span className="error-text">{exportInvoicesError}</span>}
+        {exportJournalError && <span className="error-text">{exportJournalError}</span>}
+        {syncError && <span className="error-text">{syncError}</span>}
+        {syncMessage && <span className="success-text">{syncMessage}</span>}
+        {paymentsError && <span className="error-text">{paymentsError}</span>}
+        {paymentsMessage && <span className="success-text">{paymentsMessage}</span>}
       </div>
 
       {pollingError && (
@@ -183,7 +327,6 @@ const Jobs = () => {
                 <th scope="col">{strings.jobs.columns.documentType}</th>
                 <th scope="col">{strings.jobs.columns.status}</th>
                 <th scope="col">{strings.jobs.columns.classification}</th>
-                <th scope="col">{strings.jobs.columns.extractedTotal}</th>
                 <th scope="col">{strings.jobs.columns.amount}</th>
                 <th scope="col">{strings.jobs.columns.submittedAt}</th>
                 <th scope="col">{strings.jobs.columns.updatedAt}</th>
@@ -200,8 +343,13 @@ const Jobs = () => {
                     <span
                       className={`status-pill status-${job.status.toLowerCase()}`}
                     >
-                      {strings.jobs.statusLabels[job.status] ?? job.status}
+                      {strings.jobs.statusLabels[job.status as keyof typeof strings.jobs.statusLabels] ?? job.status}
                     </span>
+                    <div className="approval-pill">
+                      <span className={`status-pill status-${job.approvalStatus}`}>
+                        {strings.jobs.statusLabels[job.approvalStatus as keyof typeof strings.jobs.statusLabels] ?? job.approvalStatus}
+                      </span>
+                    </div>
                   </td>
                   <td>
                     {job.classification
@@ -209,20 +357,8 @@ const Jobs = () => {
                       : strings.jobs.pendingClassification}
                   </td>
                   <td>
-                    {(() => {
-                      const metadata = job.metadata as Record<string, unknown> | undefined;
-                      const amounts = (metadata?.amounts ?? null) as
-                        | { total?: number | null }
-                        | null;
-                      if (amounts?.total === null || amounts?.total === undefined) {
-                        return strings.jobs.amountUnavailable;
-                      }
-                      return `¥${amounts.total.toLocaleString("ja-JP")}`;
-                    })()}
-                  </td>
-                  <td>
                     {formatCurrency(
-                      job.journalEntry?.amount_gross ?? null,
+                      job.journalEntry?.amount_gross ?? job.journalEntry?.amount ?? null,
                       strings.jobs.amountUnavailable,
                     )}
                   </td>

@@ -48,6 +48,8 @@ def get_job(
     try:
         job = job_store.get_job(job_id)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+        ) from None
 
     return job_to_model(job)

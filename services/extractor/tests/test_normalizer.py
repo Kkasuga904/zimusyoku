@@ -22,4 +22,3 @@ def test_batch_normalize_deduplicates():
     )
     assert {row.account for row in rows} == {"A", "B"}
     assert any(row.amount == 3.0 for row in rows if row.account == "A")
-

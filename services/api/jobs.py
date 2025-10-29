@@ -41,6 +41,8 @@ class Job:
     error: str | None = None
     journal_entry: dict[str, Any] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    approval_status: str = "pending"
+    approval_history: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -63,6 +65,8 @@ class Job:
             error=data.get("error"),
             journal_entry=data.get("journal_entry"),
             metadata=data.get("metadata") or {},
+            approval_status=data.get("approval_status", "pending"),
+            approval_history=data.get("approval_history") or [],
         )
 
 
@@ -113,7 +117,9 @@ class JobStore:
                     return job
         raise KeyError(job_id)
 
-    def update_status(self, job_id: str, status: str, *, error: str | None = None) -> Job:
+    def update_status(
+        self, job_id: str, status: str, *, error: str | None = None
+    ) -> Job:
         def mutate(job: Job) -> None:
             job.status = status
             job.error = error
@@ -140,6 +146,15 @@ class JobStore:
     def set_metadata(self, job_id: str, **metadata: Any) -> Job:
         def mutate(job: Job) -> None:
             job.metadata.update(metadata)
+
+        return self._update(job_id, mutate)
+
+    def set_approval(
+        self, job_id: str, *, status: str, history: list[dict[str, Any]]
+    ) -> Job:
+        def mutate(job: Job) -> None:
+            job.approval_status = status
+            job.approval_history = history
 
         return self._update(job_id, mutate)
 

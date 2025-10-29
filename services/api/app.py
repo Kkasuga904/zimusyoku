@@ -7,7 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .routes_accounting import router as accounting_router
+from .routes_approvals import router as approvals_router
 from .routes_auth import router as auth_router
+from .routes_export import router as export_router
+from .routes_integrations import router as integrations_router
 from .routes_jobs import router as jobs_router
 from .routes_ocr import router as ocr_router
 from .routes_summary import router as summary_router
@@ -35,6 +38,9 @@ def create_app() -> FastAPI:
     app.include_router(ocr_router)
     app.include_router(accounting_router)
     app.include_router(jobs_router)
+    app.include_router(approvals_router)
+    app.include_router(export_router)
+    app.include_router(integrations_router)
     app.include_router(summary_router)
 
     @app.get("/health")

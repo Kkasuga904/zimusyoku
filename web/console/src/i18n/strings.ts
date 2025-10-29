@@ -15,6 +15,7 @@ export type Strings = {
     jobs: string;
     upload: string;
     help: string;
+    approvals: string;
   };
   home: {
     title: string;
@@ -81,7 +82,6 @@ export type Strings = {
       documentType: string;
       status: string;
       classification: string;
-      extractedTotal: string;
       amount: string;
       submittedAt: string;
       updatedAt: string;
@@ -97,10 +97,26 @@ export type Strings = {
     statusLabels: Record<string, string>;
     viewDetail: string;
     exportCsv: string;
+    exportInvoices: string;
+    exportJournal: string;
     exporting: string;
     exportError: string;
+    exportInvoicesError: string;
+    exportJournalError: string;
     pendingClassification: string;
     amountUnavailable: string;
+    syncLabel: string;
+    syncing: string;
+    syncSuccess: string;
+    syncError: string;
+    syncTargets: {
+      freee: string;
+      yayoi: string;
+    };
+    executePayments: string;
+    executingPayments: string;
+    executePaymentsError: string;
+    executePaymentsSuccess: string;
   };
   jobDetail: {
     title: string;
@@ -109,6 +125,9 @@ export type Strings = {
     statusRunning: string;
     statusOk: string;
     statusFailed: string;
+    statusPendingApproval: string;
+    statusApproved: string;
+    statusRejected: string;
     statusDescriptions: Record<string, string>;
     pollingInfo: string;
     stopPolling: string;
@@ -124,6 +143,13 @@ export type Strings = {
     amountUnavailable: string;
     backToJobs: string;
     notFound: string;
+    lineItemsTitle: string;
+    lineItemHeaders: {
+      description: string;
+      quantity: string;
+      unitPrice: string;
+      amount: string;
+    };
   };
   help: {
     title: string;
@@ -153,6 +179,38 @@ export type Strings = {
     barTitle: string;
     noData: string;
     breakdownLabel: string;
+    approvalRate: string;
+    monthlyTitle: string;
+    monthlyEmpty: string;
+    topAccountsTitle: string;
+    categoryRatioTitle: string;
+  };
+  approvals: {
+    title: string;
+    description: string;
+    tabs: {
+      pending: string;
+      approved: string;
+      rejected: string;
+    };
+    tableCaption: string;
+    columns: {
+      jobId: string;
+      vendor: string;
+      amount: string;
+      updated: string;
+      status: string;
+      actions: string;
+    };
+    empty: string;
+    approve: string;
+    reject: string;
+    approveSuccess: string;
+    rejectSuccess: string;
+    actionError: string;
+    notePlaceholder: string;
+    approvalHistory: string;
+    latestAction: string;
   };
   auth: {
     title: string;
@@ -179,6 +237,7 @@ export const ja: Strings = {
     jobs: "ジョブ一覧",
     upload: "アップロード",
     help: "ヘルプ",
+    approvals: "承認ワークフロー",
   },
   home: {
     title: "はじめに",
@@ -242,14 +301,13 @@ export const ja: Strings = {
   },
   jobs: {
     title: "ジョブ一覧",
-    description:
-      "アップロード済みのファイルと処理状況を確認します。分類が完了すると勘定科目が表示されます。",
+    description: "アップロード済みのファイルと承認状況を確認します。承認済みのジョブは会計システム同期や銀行振込の対象になります。",
     tableCaption: "送信済みジョブ",
     columns: {
       id: "ジョブID",
       fileName: "ファイル名",
       documentType: "区分",
-      status: "ステータス",
+      status: "処理ステータス",
       classification: "分類結果",
       amount: "金額（税込）",
       submittedAt: "受付日時",
@@ -264,17 +322,37 @@ export const ja: Strings = {
     pollError: "最新の状態を取得できませんでした。ネットワークを確認のうえ再試行してください。",
     updatedAt: (time) => `更新: ${time}`,
     statusLabels: {
-      Queued: "待機中",
-      Running: "処理中",
-      Ok: "完了",
-      Failed: "失敗",
+      queued: "待機中",
+      running: "処理中",
+      pending: "承認待ち",
+      pending_approval: "承認待ち",
+      approved: "承認済み",
+      rejected: "却下",
+      ok: "完了",
+      failed: "失敗",
     },
     viewDetail: "詳細を見る",
     exportCsv: "CSVをダウンロード",
+    exportInvoices: "請求書PDF",
+    exportJournal: "仕訳CSV",
     exporting: "生成中…",
     exportError: "CSVの生成に失敗しました。",
+    exportInvoicesError: "請求書PDFの生成に失敗しました。",
+    exportJournalError: "仕訳CSVの生成に失敗しました。",
     pendingClassification: "分類待ち",
     amountUnavailable: "金額なし",
+    syncLabel: "会計システム同期",
+    syncing: "同期中…",
+    syncSuccess: "{count}件を同期キューに登録しました",
+    syncError: "同期に失敗しました。",
+    syncTargets: {
+      freee: "freee",
+      yayoi: "弥生会計",
+    },
+    executePayments: "銀行振込を実行",
+    executingPayments: "振込処理中…",
+    executePaymentsError: "振込のモック処理に失敗しました。",
+    executePaymentsSuccess: "承認済みジョブの振込を登録しました (バッチ {batch})",
   },
   jobDetail: {
     title: "ジョブ詳細",
@@ -283,11 +361,17 @@ export const ja: Strings = {
     statusRunning: "処理中",
     statusOk: "完了",
     statusFailed: "失敗",
+    statusPendingApproval: "承認待ち",
+    statusApproved: "承認済み",
+    statusRejected: "却下",
     statusDescriptions: {
-      Queued: "処理待ちの状態です。まもなく開始します。",
-      Running: "OCR と AI 分類を実行中です。しばらくお待ちください。",
-      Ok: "処理が完了しました。必要に応じてCSVを出力できます。",
-      Failed: "処理に失敗しました。ファイル内容を確認して再送信してください。",
+      queued: "処理待ちの状態です。まもなく開始します。",
+      running: "OCR と AI 分類を実行中です。しばらくお待ちください。",
+      pending_approval: "AI仕訳が完了しました。承認ワークフローで確認してください。",
+      approved: "承認済みです。会計システム同期や振込に利用できます。",
+      rejected: "却下されました。必要に応じて再アップロードしてください。",
+      failed: "処理に失敗しました。ファイル内容を確認して再送信してください。",
+      ok: "処理が完了しました。必要に応じてCSVを出力できます。",
     },
     pollingInfo: "ステータスは5秒ごとに自動更新されます。",
     stopPolling: "自動更新を停止",
@@ -303,6 +387,13 @@ export const ja: Strings = {
     amountUnavailable: "金額情報がありません。",
     backToJobs: "ジョブ一覧へ戻る",
     notFound: "該当するジョブが見つかりませんでした。ジョブ一覧から選び直してください。",
+    lineItemsTitle: "明細行",
+    lineItemHeaders: {
+      description: "品目",
+      quantity: "数量",
+      unitPrice: "単価",
+      amount: "金額",
+    },
   },
   help: {
     title: "クイックヘルプ",
@@ -348,6 +439,39 @@ export const ja: Strings = {
     barTitle: "費目別支出額",
     noData: "まだ集計データがありません。ジョブを完了させるとここに表示されます。",
     breakdownLabel: "費目別集計",
+    approvalRate: "承認率",
+    monthlyTitle: "月次支出推移",
+    monthlyEmpty: "まだ月次の実績がありません。",
+    topAccountsTitle: "勘定科目別 上位5件",
+    categoryRatioTitle: "カテゴリー構成比",
+  },
+  approvals: {
+    title: "承認ワークフロー",
+    description:
+      "AI仕訳済みのジョブを確認し、承認または却下を行ってください。承認済みのみが同期や振込の対象になります。",
+    tabs: {
+      pending: "承認待ち",
+      approved: "承認済み",
+      rejected: "却下済み",
+    },
+    tableCaption: "ジョブ承認一覧",
+    columns: {
+      jobId: "ジョブID",
+      vendor: "取引先",
+      amount: "金額",
+      updated: "更新日時",
+      status: "承認ステータス",
+      actions: "操作",
+    },
+    empty: "対象のジョブはありません",
+    approve: "承認",
+    reject: "却下",
+    approveSuccess: "承認しました",
+    rejectSuccess: "却下しました",
+    actionError: "処理に失敗しました。もう一度お試しください。",
+    notePlaceholder: "コメント (任意)",
+    approvalHistory: "承認履歴",
+    latestAction: "最終更新",
   },
   auth: {
     title: "ログイン",
@@ -374,6 +498,7 @@ export const en: Strings = {
     jobs: "Jobs",
     upload: "Upload",
     help: "Help",
+    approvals: "Approvals",
   },
   home: {
     title: "Getting started",
@@ -439,15 +564,14 @@ export const en: Strings = {
   jobs: {
     title: "Jobs",
     description:
-      "See the processing state for each uploaded file. Once classification is done the expense category appears here.",
+      "Review processing state and approval status for each uploaded document. Only approved jobs are eligible for sync or payment execution.",
     tableCaption: "Submitted jobs",
     columns: {
       id: "Job ID",
       fileName: "File name",
       documentType: "Type",
-      status: "Status",
+      status: "Processing status",
       classification: "Category",
-      extractedTotal: "Extracted total",
       amount: "Amount (gross)",
       submittedAt: "Submitted",
       updatedAt: "Last update",
@@ -462,17 +586,37 @@ export const en: Strings = {
       "Could not refresh the latest status. Check your connection and retry.",
     updatedAt: (time) => `Last updated: ${time}`,
     statusLabels: {
-      Queued: "Queued",
-      Running: "Running",
-      Ok: "Complete",
-      Failed: "Failed",
+      queued: "Queued",
+      running: "Processing",
+      pending: "Pending",
+      pending_approval: "Awaiting approval",
+      approved: "Approved",
+      rejected: "Rejected",
+      ok: "Complete",
+      failed: "Failed",
     },
     viewDetail: "View details",
     exportCsv: "Export CSV",
+    exportInvoices: "Invoices PDF",
+    exportJournal: "Journal CSV",
     exporting: "Preparing…",
     exportError: "Export failed. Please retry later.",
+    exportInvoicesError: "Failed to generate invoice PDF.",
+    exportJournalError: "Failed to generate journal CSV.",
     pendingClassification: "Pending",
     amountUnavailable: "Not available",
+    syncLabel: "Sync to accounting",
+    syncing: "Syncing…",
+    syncSuccess: "Queued {count} job(s) for sync",
+    syncError: "Sync failed. Please retry.",
+    syncTargets: {
+      freee: "freee",
+      yayoi: "Yayoi Accounting",
+    },
+    executePayments: "Execute bank transfer",
+    executingPayments: "Processing payments…",
+    executePaymentsError: "Payment mock execution failed.",
+    executePaymentsSuccess: "Created payment batch {batch} for approved jobs.",
   },
   jobDetail: {
     title: "Job detail",
@@ -482,11 +626,17 @@ export const en: Strings = {
     statusRunning: "In progress",
     statusOk: "Complete",
     statusFailed: "Failed",
+    statusPendingApproval: "Awaiting approval",
+    statusApproved: "Approved",
+    statusRejected: "Rejected",
     statusDescriptions: {
-      Queued: "Processing will start shortly.",
-      Running: "Running OCR and classification. Please wait a moment.",
-      Ok: "Completed successfully. Export the journal if required.",
-      Failed: "Processing failed. Review the file and upload again.",
+      queued: "Processing will start shortly.",
+      running: "Running OCR and classification. Please wait a moment.",
+      pending_approval: "AI classification is complete. Review on the Approvals page.",
+      approved: "Approved and ready for syncing or payment execution.",
+      rejected: "Rejected. Upload a corrected document if necessary.",
+      failed: "Processing failed. Review the file and upload again.",
+      ok: "Completed successfully. Export the journal if required.",
     },
     pollingInfo: "Status refreshes every 5 seconds.",
     stopPolling: "Pause auto refresh",
@@ -503,6 +653,13 @@ export const en: Strings = {
     backToJobs: "Back to jobs",
     notFound:
       "We could not find that job. Please return to the jobs list and choose another entry.",
+    lineItemsTitle: "Line items",
+    lineItemHeaders: {
+      description: "Description",
+      quantity: "Qty",
+      unitPrice: "Unit price",
+      amount: "Amount",
+    },
   },
   help: {
     title: "Quick help",
@@ -548,6 +705,39 @@ export const en: Strings = {
     barTitle: "Expense by category",
     noData: "No summary data yet. Once jobs are completed the chart will be populated.",
     breakdownLabel: "Breakdown",
+    approvalRate: "Approval rate",
+    monthlyTitle: "Monthly spend trend",
+    monthlyEmpty: "No monthly data available yet.",
+    topAccountsTitle: "Top 5 accounts",
+    categoryRatioTitle: "Category composition",
+  },
+  approvals: {
+    title: "Approvals",
+    description:
+      "Review AI-prepared journals and approve or reject them. Only approved jobs can be synced or paid.",
+    tabs: {
+      pending: "Pending",
+      approved: "Approved",
+      rejected: "Rejected",
+    },
+    tableCaption: "Approval jobs",
+    columns: {
+      jobId: "Job ID",
+      vendor: "Vendor",
+      amount: "Amount",
+      updated: "Updated",
+      status: "Status",
+      actions: "Actions",
+    },
+    empty: "No jobs in this state.",
+    approve: "Approve",
+    reject: "Reject",
+    approveSuccess: "Approved successfully.",
+    rejectSuccess: "Rejected successfully.",
+    actionError: "Action failed. Please try again.",
+    notePlaceholder: "Optional comment",
+    approvalHistory: "History",
+    latestAction: "Latest action",
   },
   auth: {
     title: "Sign in",

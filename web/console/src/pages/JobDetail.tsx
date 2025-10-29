@@ -4,10 +4,14 @@ import { fetchJobById, type JobDetail as JobDetailType, type JobStatus } from ".
 import { useStrings } from "../i18n/strings";
 
 const statusIcons: Record<JobStatus, string> = {
-  Queued: "⏳",
-  Running: "⚙️",
-  Ok: "✅",
-  Failed: "❌",
+  queued: "⏳",
+  running: "⚙️",
+  pending: "📝",
+  pending_approval: "📝",
+  approved: "✅",
+  rejected: "❌",
+  failed: "❌",
+  ok: "✅",
 };
 
 const formatDateTime = (value: string) => {
@@ -49,9 +53,10 @@ const JobDetail = () => {
       return "";
     }
 
+    const normalized = job.status.toLowerCase();
     return (
-      strings.jobDetail.statusDescriptions[job.status] ??
-      strings.jobs.statusLabels[job.status] ??
+      strings.jobDetail.statusDescriptions[normalized] ??
+      strings.jobs.statusLabels[normalized] ??
       job.status
     );
   }, [job, strings.jobDetail.statusDescriptions, strings.jobs.statusLabels]);
@@ -67,7 +72,7 @@ const JobDetail = () => {
       setJob(result);
       setLoadState("success");
 
-      if (result.status === "Ok" || result.status === "Failed") {
+      if (["ok", "failed", "approved", "rejected"].includes(result.status.toLowerCase())) {
         setIsPolling(false);
       }
     } catch (_error) {
@@ -84,7 +89,7 @@ const JobDetail = () => {
       return;
     }
 
-    if (!job || job.status === "Ok" || job.status === "Failed") {
+    if (!job || ["ok", "failed", "approved", "rejected"].includes(job.status.toLowerCase())) {
       return;
     }
 
@@ -129,10 +134,36 @@ const JobDetail = () => {
     );
   }
 
+  const normalizedStatus = job.status.toLowerCase() as JobStatus;
   const statusLabel =
-    strings.jobs.statusLabels[job.status] ?? strings.jobDetail.title;
+    strings.jobs.statusLabels[normalizedStatus] ?? strings.jobDetail.title;
 
-  const isFinalStatus = job.status === "Ok" || job.status === "Failed";
+  const isFinalStatus = ["ok", "failed", "approved", "rejected"].includes(
+    normalizedStatus,
+  );
+
+  const ocrFields = job.ocr?.fields as Record<string, unknown> | undefined;
+  const lineItemsRaw =
+    (ocrFields?.lineItems as unknown[] | undefined) ??
+    (ocrFields?.line_items as unknown[] | undefined);
+  const lineItems = Array.isArray(lineItemsRaw)
+    ? lineItemsRaw.map((item) => {
+        const source = item as {
+          description?: string;
+          quantity?: number;
+          unit_price?: number;
+          unitPrice?: number;
+          amount?: number;
+        };
+        return {
+          description: source.description,
+          quantity: source.quantity,
+          unitPrice: source.unit_price ?? source.unitPrice,
+          amount: source.amount,
+        };
+      }) 
+    : [];
+  const approvalHistory = job.approvalHistory ?? [];
 
   return (
     <section className="panel job-detail-panel">
@@ -147,11 +178,11 @@ const JobDetail = () => {
       <div
         className={`status-callout status-${job.status.toLowerCase()}`}
         role="status"
-        aria-live="polite"
-      >
-        <span className="status-icon" aria-hidden="true">
-          {statusIcons[job.status]}
-        </span>
+      aria-live="polite"
+    >
+      <span className="status-icon" aria-hidden="true">
+        {statusIcons[normalizedStatus]}
+      </span>
         <div>
           <p className="status-label">
             {statusLabel}
@@ -203,15 +234,66 @@ const JobDetail = () => {
           </dd>
         </div>
         <div>
-          <dt>{strings.jobDetail.tax}</dt>
-          <dd>
-            {formatCurrency(
-              job.journalEntry?.tax ?? null,
-              strings.jobDetail.amountUnavailable,
-            )}
-          </dd>
+      <dt>{strings.jobDetail.tax}</dt>
+      <dd>
+        {formatCurrency(
+          job.journalEntry?.tax ?? null,
+          strings.jobDetail.amountUnavailable,
+        )}
+      </dd>
+    </div>
+  </dl>
+
+      {lineItems.length > 0 && (
+        <div className="line-items">
+          <h3>{strings.jobDetail.lineItemsTitle}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">{strings.jobDetail.lineItemHeaders.description}</th>
+                <th scope="col">{strings.jobDetail.lineItemHeaders.quantity}</th>
+                <th scope="col">{strings.jobDetail.lineItemHeaders.unitPrice}</th>
+                <th scope="col">{strings.jobDetail.lineItemHeaders.amount}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lineItems.map((item, index) => (
+                <tr key={`${item.description ?? "item"}-${index}`}>
+                  <td>{item.description ?? "—"}</td>
+                  <td>{item.quantity ?? "-"}</td>
+                  <td>
+                    {typeof item.unitPrice === "number"
+                      ? formatCurrency(item.unitPrice, strings.jobs.amountUnavailable)
+                      : strings.jobs.amountUnavailable}
+                  </td>
+                  <td>
+                    {typeof item.amount === "number"
+                      ? formatCurrency(item.amount, strings.jobs.amountUnavailable)
+                      : strings.jobs.amountUnavailable}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </dl>
+      )}
+
+      {approvalHistory.length > 0 && (
+        <div className="approval-history">
+          <h3>{strings.approvals.approvalHistory}</h3>
+          <ul>
+            {approvalHistory.map((event, index) => (
+              <li key={`${event.actor}-${event.recordedAt}-${index}`}>
+                <span>{new Date(event.recordedAt).toLocaleString()}</span>
+                <span>
+                  {strings.jobs.statusLabels[event.action] ?? event.action} — {event.actor}
+                </span>
+                {event.note && <span className="note">“{event.note}”</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="button-row">
         <button

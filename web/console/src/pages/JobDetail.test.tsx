@@ -36,14 +36,14 @@ describe("JobDetail page", () => {
   it("renders a completed job and disables polling controls", async () => {
     fetchJobByIdMock.mockResolvedValue({
       id: "JOB-7777",
-      status: "Ok",
+      status: "approved",
       ...baseJob,
     });
 
     renderDetail();
 
     expect(
-      await screen.findByText(strings.jobs.statusLabels.Ok),
+      await screen.findByText(strings.jobs.statusLabels.approved),
     ).toBeInTheDocument();
     const toggle = screen.getByRole("button", {
       name: strings.jobDetail.resumePolling,
@@ -57,19 +57,19 @@ describe("JobDetail page", () => {
   it("allows pausing and resuming polling for a running job", async () => {
     fetchJobByIdMock.mockResolvedValueOnce({
       id: "JOB-8888",
-      status: "Queued",
+      status: "queued",
       ...baseJob,
     });
     fetchJobByIdMock.mockResolvedValueOnce({
       id: "JOB-8888",
-      status: "Running",
+      status: "running",
       ...baseJob,
       updatedAt: "2025-10-20T00:05:00.000Z",
     });
 
     renderDetail("JOB-8888");
 
-    await screen.findByText(strings.jobs.statusLabels.Queued);
+    await screen.findByText(strings.jobs.statusLabels.queued);
 
     const toggle = screen.getByRole("button", {
       name: strings.jobDetail.stopPolling,
@@ -84,7 +84,7 @@ describe("JobDetail page", () => {
 
     await waitFor(() => expect(fetchJobByIdMock).toHaveBeenCalledTimes(2));
     expect(
-      screen.getByText(strings.jobs.statusLabels.Running),
+      screen.getByText(strings.jobs.statusLabels.running),
     ).toBeInTheDocument();
   });
 });

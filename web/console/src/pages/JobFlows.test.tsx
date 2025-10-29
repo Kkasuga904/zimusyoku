@@ -4,9 +4,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import JobDetail from "./JobDetail";
 import Upload from "./Upload";
-import { ApiError } from "../lib/api";
-import * as api from "../lib/api";
-import type { JobDetail as JobDetailType, UploadResult } from "../types/job";
+import { ApiError } from "../modules/apiClient";
+import * as jobsApi from "../modules/jobsApi";
+import { ja as strings } from "../i18n/strings";
+import type {
+  JobDetail as JobDetailType,
+  JobSummary,
+} from "../modules/jobsApi";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -16,16 +20,24 @@ describe("JobDetail page", () => {
   it("renders job details from the API", async () => {
     const payload: JobDetailType = {
       id: "job-123",
-      title: "Processing invoice",
+      fileName: "invoice-job-123.pdf",
+      documentType: "invoice",
       status: "running",
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:05:00Z",
-      started_at: "2024-01-01T00:01:00Z",
-      finished_at: null,
-      logs: ["2024-01-01T00:01:00Z Job picked up by worker"],
+      submittedAt: "2024-01-01T00:01:00Z",
+      updatedAt: "2024-01-01T00:05:00Z",
+      approvalStatus: "pending",
+      approvalHistory: [],
+      classification: "Utilities",
+      journalEntry: null,
+      metadata: {},
+      ocr: {
+        text: "OCR text",
+        fields: {},
+      },
+      error: null,
     };
 
-    vi.spyOn(api, "fetchJobDetail").mockResolvedValue(payload);
+    vi.spyOn(jobsApi, "fetchJobById").mockResolvedValue(payload);
 
     render(
       <MemoryRouter initialEntries={["/jobs/job-123"]}>
@@ -35,18 +47,22 @@ describe("JobDetail page", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText(/Job job-123/i)).toBeInTheDocument();
-    expect(screen.getByText("Processing invoice")).toBeInTheDocument();
     expect(
-      screen.getByText("2024-01-01T00:01:00Z Job picked up by worker"),
+      await screen.findByRole("heading", { name: strings.jobDetail.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(payload.fileName)).toBeInTheDocument();
+    expect(
+      screen.getByText(strings.jobs.statusLabels.running),
     ).toBeInTheDocument();
 
-    await waitFor(() => expect(api.fetchJobDetail).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(jobsApi.fetchJobById).toHaveBeenCalledWith("job-123"),
+    );
   });
 
   it("shows an error when the job cannot be found", async () => {
-    vi.spyOn(api, "fetchJobDetail").mockRejectedValue(
-      new ApiError("Job not found", 404),
+    vi.spyOn(jobsApi, "fetchJobById").mockRejectedValue(
+      new ApiError(404, "Not found"),
     );
 
     render(
@@ -57,7 +73,9 @@ describe("JobDetail page", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Job not found");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      strings.jobDetail.notFound,
+    );
   });
 
   it("handles rendering without a job id", () => {
@@ -69,46 +87,66 @@ describe("JobDetail page", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/Missing job identifier/i)).toBeInTheDocument();
+    expect(screen.getByText(strings.jobDetail.notFound)).toBeInTheDocument();
   });
 });
 
 describe("Upload page", () => {
-  it("uploads a file and navigates to the new job", async () => {
-    const response: UploadResult = {
-      job_id: "job-999",
-      stored_name: "stored-demo.txt",
+  it("uploads a file and shows the success message with job link", async () => {
+    const job: JobSummary = {
+      id: "job-999",
+      fileName: "demo.pdf",
+      documentType: "invoice",
+      status: "queued",
+      submittedAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:10Z",
+      approvalStatus: "pending",
+      approvalHistory: [],
+      classification: null,
+      journalEntry: null,
+      metadata: {},
     };
 
-    vi.spyOn(api, "uploadFile").mockResolvedValue(response);
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const registerSpy = vi
+      .spyOn(jobsApi, "registerJob")
+      .mockResolvedValue(job);
 
     render(
       <MemoryRouter initialEntries={["/upload"]}>
         <Routes>
           <Route path="/upload" element={<Upload />} />
-          <Route path="/jobs/:id" element={<div>Job detail stub</div>} />
         </Routes>
       </MemoryRouter>,
     );
 
-    const fileInput = screen.getByLabelText("Select file");
-    const file = new File(["sample"], "demo.txt", { type: "text/plain" });
+    const fileInput = screen.getByLabelText(strings.upload.selectButton);
+    const file = new File(["sample"], "demo.pdf", {
+      type: "application/pdf",
+    });
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     const submitButton = screen.getByRole("button", {
-      name: /submit for processing/i,
+      name: strings.upload.submitButton,
     });
     fireEvent.click(submitButton);
 
-    await waitFor(() => expect(api.uploadFile).toHaveBeenCalledWith(file));
-    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
-    expect(await screen.findByText("Job detail stub")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(registerSpy).toHaveBeenCalledWith(file, "invoice", {
+        enhance: false,
+      }),
+    );
 
-    alertSpy.mockRestore();
+    expect(
+      await screen.findByText(strings.upload.success(job.id)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: `${strings.upload.viewJobDetail} (${job.id})`,
+      }),
+    ).toBeInTheDocument();
   });
 
-  it("prompts for a file when none is selected", async () => {
+  it("prevents submission when no file is selected", () => {
     render(
       <MemoryRouter initialEntries={["/upload"]}>
         <Routes>
@@ -118,17 +156,14 @@ describe("Upload page", () => {
     );
 
     const submitButton = screen.getByRole("button", {
-      name: /submit for processing/i,
+      name: strings.upload.submitButton,
     });
-    fireEvent.click(submitButton);
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Select a file to process",
-    );
+    expect(submitButton).toBeDisabled();
+    expect(screen.getByText(strings.upload.noFile)).toBeInTheDocument();
   });
 
   it("shows an error when the API call fails", async () => {
-    vi.spyOn(api, "uploadFile").mockRejectedValue(new Error("failed"));
+    vi.spyOn(jobsApi, "registerJob").mockRejectedValue(new Error("failed"));
 
     render(
       <MemoryRouter initialEntries={["/upload"]}>
@@ -138,15 +173,17 @@ describe("Upload page", () => {
       </MemoryRouter>,
     );
 
-    const fileInput = screen.getByLabelText("Select file");
-    const file = new File(["sample"], "demo.txt", { type: "text/plain" });
+    const fileInput = screen.getByLabelText(strings.upload.selectButton);
+    const file = new File(["sample"], "demo.pdf", {
+      type: "application/pdf",
+    });
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     const submitButton = screen.getByRole("button", {
-      name: /submit for processing/i,
+      name: strings.upload.submitButton,
     });
     fireEvent.click(submitButton);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Upload failed");
+    expect(await screen.findByRole("alert")).toHaveTextContent(strings.upload.failed);
   });
 });
