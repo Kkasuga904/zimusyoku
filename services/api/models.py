@@ -135,7 +135,7 @@ class AmountFieldsModel(BaseModel):
     subtotal: int | None = None
     tax: int | None = None
     total: int | None = None
-    conf: float | None = None
+    confidence: float | None = None
 
 
 class AmountExtractionResponse(BaseModel):

@@ -73,12 +73,18 @@ def _store_debug_crop(
 def _build_amount_response(
     result: RecognitionResult, amounts: dict[str, object]
 ) -> AmountExtractionResponse:
+    amount_confidence = None
+    fields_info = amounts.get("fields")
+    if isinstance(fields_info, dict):
+        amount_confidence = fields_info.get("confidence")
+    if amount_confidence is None:
+        amount_confidence = result.candidate.backend_scores.get("avg_conf")
     fields = AmountFieldsModel(
         currency=amounts.get("currency", "JPY"),
         subtotal=amounts.get("subtotal"),
         tax=amounts.get("tax"),
         total=amounts.get("total"),
-        conf=result.candidate.backend_scores.get("avg_conf"),
+        confidence=amount_confidence,
     )
     candidate_models = [
         AmountCandidateModel(
@@ -183,7 +189,12 @@ async def upload_document(
                 "subtotal": amounts.get("subtotal"),
                 "tax": amounts.get("tax"),
                 "total": amounts.get("total"),
-                "conf": recognition.candidate.backend_scores.get("avg_conf"),
+                "confidence": (
+                    (amounts.get("fields") or {}).get("confidence")
+                    if isinstance(amounts.get("fields"), dict)
+                    else None
+                )
+                or recognition.candidate.backend_scores.get("avg_conf"),
             },
             amount_candidates=amounts.get("candidates", []),
             ocr_debug=recognition.to_debug(),

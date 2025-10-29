@@ -32,6 +32,12 @@ class PreprocessedOrientation:
             "rotation": self.rotation,
             "angle": float(self.angle_correction),
             "digits": int(self.metadata.get("digit_candidates", 0)),
+            "edge_strength": float(self.metadata.get("edge_strength", 0.0)),
+            "gamma": (
+                float(self.metadata.get("gamma", 0.0))
+                if self.metadata.get("gamma") is not None
+                else None
+            ),
         }
 
 
@@ -114,12 +120,12 @@ def _auto_contrast(image: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
 
 
-def _gamma_correction(image: np.ndarray, gamma: float = 1.1) -> np.ndarray:
-    gamma = max(gamma, 0.1)
+def _gamma_correction(image: np.ndarray, gamma: float = 1.3) -> np.ndarray:
+    gamma = max(min(gamma, 5.0), 0.1)
     inv_gamma = 1.0 / gamma
     table = np.array(
-        [(i / 255.0) ** inv_gamma * 255 for i in np.arange(0, 256)]
-    ).astype("uint8")
+        [(i / 255.0) ** inv_gamma * 255 for i in range(256)], dtype="uint8"
+    )
     return cv2.LUT(image, table)
 
 
@@ -181,6 +187,11 @@ def _trim_whitespace(image: np.ndarray) -> np.ndarray:
     return image[y : y + h, x : x + w]
 
 
+def _average_edge_strength(image: np.ndarray) -> float:
+    edges = cv2.Canny(image, 60, 180)
+    return float(edges.mean() / 255.0)
+
+
 def _estimate_digit_candidates(binary: np.ndarray) -> tuple[int, float]:
     contours, _ = cv2.findContours(
         255 - binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
@@ -199,6 +210,23 @@ def _estimate_digit_candidates(binary: np.ndarray) -> tuple[int, float]:
     return digit_like, density
 
 
+def _select_gamma(image: np.ndarray) -> float:
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    hist = cv2.calcHist([gray], [0], None, [256], [0, 256]).flatten()
+    if not hist.any():
+        return 1.3
+    peak_bin = int(np.argmax(hist))
+    if peak_bin < 60:
+        return 1.6
+    if peak_bin < 110:
+        return 1.5
+    if peak_bin < 160:
+        return 1.3
+    if peak_bin < 200:
+        return 1.25
+    return 1.2
+
+
 def preprocess_image(
     source: str | Path | np.ndarray | bytes,
     *,
@@ -210,7 +238,10 @@ def preprocess_image(
     if enhance:
         original = _enhance_low_resolution(original)
         original = _auto_contrast(original)
-        original = _gamma_correction(original, gamma=1.1)
+        gamma = _select_gamma(original)
+        original = _gamma_correction(original, gamma=gamma)
+    else:
+        gamma = None
 
     orientations: list[PreprocessedOrientation] = []
     for rotation in rotations:
@@ -225,7 +256,8 @@ def preprocess_image(
         deskewed, angle = _deskew(trimmed)
         final = deskewed
         digits, density = _estimate_digit_candidates(final)
-        score = digits + density * 10
+        edge_strength = _average_edge_strength(final)
+        score = digits + edge_strength
         orientations.append(
             PreprocessedOrientation(
                 rotation=rotation,
@@ -235,8 +267,10 @@ def preprocess_image(
                 metadata={
                     "digit_candidates": digits,
                     "density": density,
+                    "edge_strength": edge_strength,
                     "score": score,
                     "enhance": enhance,
+                    "gamma": gamma,
                 },
             )
         )

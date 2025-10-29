@@ -19,6 +19,7 @@ class OCRSpan:
     text: str
     confidence: float
     bbox: list[tuple[int, int]]
+    backend: str = "unknown"
 
 
 @dataclass(slots=True)
@@ -99,6 +100,7 @@ def _recognize_paddle(image: np.ndarray) -> list[OCRSpan]:
                     text=text.strip(),
                     confidence=conf_value,
                     bbox=bbox,
+                    backend="paddle",
                 )
             )
     return spans
@@ -117,7 +119,8 @@ def _recognize_tesseract(image: np.ndarray, *, psm: int) -> list[OCRSpan]:
         data.get("left", []),
         data.get("top", []),
         data.get("width", []),
-        data.get("height", []), strict=False,
+        data.get("height", []),
+        strict=False,
     ):
         if not text or float(conf) < 0:
             continue
@@ -125,36 +128,107 @@ def _recognize_tesseract(image: np.ndarray, *, psm: int) -> list[OCRSpan]:
         if conf_value < 0.6:
             continue
         bbox = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
-        spans.append(OCRSpan(text=text.strip(), confidence=conf_value, bbox=bbox))
+        spans.append(
+            OCRSpan(
+                text=text.strip(),
+                confidence=conf_value,
+                bbox=bbox,
+                backend="tesseract",
+            )
+        )
     return spans
+
+
+def _best_tesseract_spans(image: np.ndarray) -> tuple[list[OCRSpan], dict[str, float]]:
+    best_spans: list[OCRSpan] = []
+    best_score = -1.0
+    backend_scores: dict[str, float] = {}
+    for psm in (6, 7, 11):
+        spans = _recognize_tesseract(image, psm=psm)
+        if not spans:
+            continue
+        confidences = [span.confidence for span in spans if span.confidence > 0]
+        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+        backend_scores[f"tesseract_psm_{psm}"] = avg_conf
+        if avg_conf > best_score:
+            best_score = avg_conf
+            best_spans = spans
+    if best_score >= 0:
+        backend_scores["tesseract_avg_conf"] = best_score
+    return best_spans, backend_scores
+
+
+def _bbox_metrics(bbox: Iterable[tuple[int, int]]) -> tuple[float, float, float, float]:
+    points = list(bbox)
+    if not points:
+        return 0.0, 0.0, 0.0, 0.0
+    xs = [float(pt[0]) for pt in points]
+    ys = [float(pt[1]) for pt in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _bbox_center_and_span(
+    bbox: Iterable[tuple[int, int]]
+) -> tuple[tuple[float, float], float, float]:
+    x_min, y_min, x_max, y_max = _bbox_metrics(bbox)
+    return (
+        ((x_min + x_max) / 2.0, (y_min + y_max) / 2.0),
+        max(x_max - x_min, 1.0),
+        max(y_max - y_min, 1.0),
+    )
+
+
+def _is_near(existing: OCRSpan, candidate: OCRSpan) -> bool:
+    center_a, width_a, height_a = _bbox_center_and_span(existing.bbox)
+    center_b, width_b, height_b = _bbox_center_and_span(candidate.bbox)
+    if width_a == 0 or height_a == 0:
+        return False
+    dx = center_a[0] - center_b[0]
+    dy = center_a[1] - center_b[1]
+    threshold = max(width_a, height_a, width_b, height_b) * 0.6 + 8.0
+    return (dx * dx + dy * dy) ** 0.5 <= threshold
 
 
 def _merge_spans(spans: Iterable[OCRSpan]) -> list[OCRSpan]:
     merged: list[OCRSpan] = []
-    for span in spans:
+    for span in sorted(spans, key=lambda item: item.confidence, reverse=True):
         if not span.text:
             continue
-        key = span.text
         duplicate = next(
-            (existing for existing in merged if existing.text == key), None
+            (
+                existing
+                for existing in merged
+                if existing.text == span.text and _is_near(existing, span)
+            ),
+            None,
         )
-        if duplicate:
-            duplicate.confidence = max(duplicate.confidence, span.confidence)
-        else:
+        if duplicate is None:
             merged.append(span)
+            continue
+        if span.confidence > duplicate.confidence:
+            duplicate.confidence = span.confidence
+            duplicate.bbox = span.bbox
+            duplicate.backend = span.backend
     return merged
 
 
 def _score_candidate(
-    spans: list[OCRSpan], orientation: PreprocessedOrientation
+    spans: list[OCRSpan],
+    orientation: PreprocessedOrientation,
+    backend_avgs: dict[str, float],
 ) -> tuple[float, dict[str, float]]:
+    orientation_score = float(orientation.metadata.get("score", 0.0))
     if not spans:
-        return (orientation.metadata.get("score", 0.0) * 0.2, {"base": 0.0})
+        return (
+            max(orientation_score * 0.2, 0.0),
+            {"orientation": orientation_score, **backend_avgs},
+        )
     confidences = [span.confidence for span in spans if span.confidence > 0]
-    avg_conf = sum(confidences) / len(confidences) if confidences else 0.2
-    digit_weight = orientation.metadata.get("digit_candidates", 0)
-    total_score = avg_conf * 10 + digit_weight
-    return total_score, {"avg_conf": avg_conf, "digit_weight": float(digit_weight)}
+    avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+    total_score = orientation_score + avg_conf * 10.0
+    metrics = {"orientation": orientation_score, "avg_conf": avg_conf}
+    metrics.update(backend_avgs)
+    return total_score, metrics
 
 
 def recognize_text(
@@ -175,13 +249,19 @@ def recognize_text(
         if paddle_spans:
             spans.extend(paddle_spans)
 
-        tesseract_spans = _recognize_tesseract(image, psm=6)
-        if not tesseract_spans:
-            tesseract_spans = _recognize_tesseract(image, psm=7)
+        tesseract_spans, tess_scores = _best_tesseract_spans(image)
         spans.extend(tesseract_spans)
 
         merged = _merge_spans(spans)
-        score, backend_scores = _score_candidate(merged, orientation)
+        paddle_avg = (
+            sum(span.confidence for span in paddle_spans) / len(paddle_spans)
+            if paddle_spans
+            else 0.0
+        )
+        backend_metrics = dict(tess_scores)
+        if paddle_spans:
+            backend_metrics["paddle_avg_conf"] = paddle_avg
+        score, backend_scores = _score_candidate(merged, orientation, backend_metrics)
         candidate = RecognitionCandidate(
             orientation=orientation,
             spans=merged,
